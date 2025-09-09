@@ -14,16 +14,25 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status')
 
     // Build query with optional status filter
-    let query = supabaseAdmin()
-      .from('team_members')
-      .select(`
-        *,
-        roles:role_id (
-          id,
-          name
-        )
-      `)
-      .order('name', { ascending: true });
+    let query;
+    try {
+      query = supabaseAdmin()
+        .from('team_members')
+        .select(`
+          *,
+          roles:role_id (
+            id,
+            name
+          )
+        `)
+        .order('name', { ascending: true });
+    } catch (supabaseError) {
+      console.error('Supabase client initialization error:', supabaseError)
+      return NextResponse.json(
+        { error: 'Database connection failed' },
+        { status: 500 }
+      )
+    }
 
     if (status) {
       query = query.eq('status', status.toUpperCase());
@@ -98,25 +107,37 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(mockMember, { status: 201 })
     }
 
-    const { data: newMember, error } = await supabaseAdmin()
-      .from('team_members')
-      .insert({
-        name: validatedData.name,
-        role_id: validatedData.role_id,
-        custom_role: validatedData.custom_role,
-        tier: validatedData.tier,
-        default_rate_per_day: validatedData.default_rate_per_day,
-        notes: validatedData.notes,
-        status: validatedData.status || 'ACTIVE'
-      })
-      .select(`
-        *,
-        roles:role_id (
-          id,
-          name
-        )
-      `)
-      .single()
+    let newMember, error;
+    try {
+      const result = await supabaseAdmin()
+        .from('team_members')
+        .insert({
+          name: validatedData.name,
+          role_id: validatedData.role_id,
+          custom_role: validatedData.custom_role,
+          tier: validatedData.tier,
+          default_rate_per_day: validatedData.default_rate_per_day,
+          notes: validatedData.notes,
+          status: validatedData.status || 'ACTIVE'
+        })
+        .select(`
+          *,
+          roles:role_id (
+            id,
+            name
+          )
+        `)
+        .single()
+      
+      newMember = result.data;
+      error = result.error;
+    } catch (supabaseError) {
+      console.error('Supabase client initialization error:', supabaseError)
+      return NextResponse.json(
+        { error: 'Database connection failed' },
+        { status: 500 }
+      )
+    }
 
     if (error) {
       const errorResponse = handleSupabaseError(error, 'create team member');
@@ -169,18 +190,30 @@ export async function PUT(request: NextRequest) {
     
     const validatedData = TeamMemberFormSchema.partial().parse(body as Record<string, unknown>)
 
-    const { data: updatedMember, error } = await supabaseAdmin()
-      .from('team_members')
-      .update(validatedData)
-      .eq('id', id)
-      .select(`
-        *,
-        roles:role_id (
-          id,
-          name
-        )
-      `)
-      .single()
+    let updatedMember, error;
+    try {
+      const result = await supabaseAdmin()
+        .from('team_members')
+        .update(validatedData)
+        .eq('id', id)
+        .select(`
+          *,
+          roles:role_id (
+            id,
+            name
+          )
+        `)
+        .single()
+      
+      updatedMember = result.data;
+      error = result.error;
+    } catch (supabaseError) {
+      console.error('Supabase client initialization error:', supabaseError)
+      return NextResponse.json(
+        { error: 'Database connection failed' },
+        { status: 500 }
+      )
+    }
 
     if (error) {
       const errorResponse = handleSupabaseError(error, 'update team member');
@@ -219,10 +252,21 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
-    const { error } = await supabaseAdmin()
-      .from('team_members')
-      .delete()
-      .eq('id', id)
+    let error;
+    try {
+      const result = await supabaseAdmin()
+        .from('team_members')
+        .delete()
+        .eq('id', id)
+      
+      error = result.error;
+    } catch (supabaseError) {
+      console.error('Supabase client initialization error:', supabaseError)
+      return NextResponse.json(
+        { error: 'Database connection failed' },
+        { status: 500 }
+      )
+    }
 
     if (error) {
       const errorResponse = handleSupabaseError(error, 'delete team member');
