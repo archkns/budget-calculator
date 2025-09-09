@@ -16,7 +16,6 @@ import { InteractiveGantt } from '@/components/ui/interactive-gantt'
 import { Calculator, Plus, Edit, Trash2, FileText, TrendingUp, TrendingDown, CalendarIcon } from 'lucide-react'
 import { format, addDays, isWeekend, differenceInDays } from 'date-fns'
 import { toast } from 'sonner'
-import { RealtimeCurrencyConverter } from "@/components/ui/realtime-currency-converter"
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
@@ -473,26 +472,52 @@ export default function ProjectWorkspace() {
 
           <TabsContent value="overview" className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Enhanced Project Settings & Currency */}
-              <RealtimeCurrencyConverter
-                currentCurrency={project.currency.code}
-                currentSymbol={project.currency.symbol}
-                proposedPrice={project.proposedPrice}
-                hoursPerDay={project.hoursPerDay}
-                onCurrencyChange={(currency, symbol, rate) => {
-                  setProject(prev => ({
-                    ...prev,
-                    currency: { code: currency, symbol },
-                    exchangeRate: rate
-                  }))
-                }}
-                onProposedPriceChange={(price) => {
-                  setProject(prev => ({ ...prev, proposedPrice: price }))
-                }}
-                onHoursPerDayChange={(hours) => {
-                  setProject(prev => ({ ...prev, hoursPerDay: hours }))
-                }}
-              />
+              {/* Project Settings */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Project Settings</CardTitle>
+                  <CardDescription>Configure project parameters and pricing</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="currency">Currency</Label>
+                      <Select value={project.currency.code}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="THB">THB (฿)</SelectItem>
+                          <SelectItem value="USD">USD ($)</SelectItem>
+                          <SelectItem value="EUR">EUR (€)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="hoursPerDay">Hours/Day</Label>
+                      <Input
+                        id="hoursPerDay"
+                        type="number"
+                        value={project.hoursPerDay}
+                        onChange={(e) => setProject(prev => ({ ...prev, hoursPerDay: parseInt(e.target.value) }))}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="proposedPrice">Proposed Price</Label>
+                    <Input
+                      id="proposedPrice"
+                      type="number"
+                      value={project.proposedPrice}
+                      onChange={(e) => setProject(prev => ({ ...prev, proposedPrice: parseFloat(e.target.value) }))}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Day Configuration */}
               <Card>
                 <CardHeader>
                   <CardTitle>Day Configuration</CardTitle>
