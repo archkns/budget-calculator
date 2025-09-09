@@ -4,7 +4,7 @@ import { CreateProjectData } from '@/lib/types/database'
 
 export async function GET() {
   try {
-    const { data: projects, error } = await supabaseAdmin
+    const { data: projects, error } = await supabaseAdmin()
       .from('projects')
       .select('*')
       .order('created_at', { ascending: false })
@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Insert project into database
-    const { data: newProject, error } = await supabaseAdmin
+    const { data: newProject, error } = await supabaseAdmin()
       .from('projects')
       .insert(insertData)
       .select()

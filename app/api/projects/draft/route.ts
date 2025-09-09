@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabase'
+import { supabaseAdmin, isSupabaseConfigured } from '@/lib/supabase'
 
 export async function GET() {
   try {
     // Check if Supabase is configured
-    if (!supabaseAdmin) {
+    if (!isSupabaseConfigured) {
       console.warn('Supabase not configured, returning empty array')
       return NextResponse.json([])
     }
 
-    const { data: drafts, error } = await supabaseAdmin
+    const { data: drafts, error } = await supabaseAdmin()
       .from('projects')
       .select('*')
       .eq('status', 'DRAFT')
@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Check if Supabase is configured
-    if (!supabaseAdmin) {
+    if (!isSupabaseConfigured) {
       console.warn('Supabase not configured, returning mock response')
       // Return a mock response for development
       const mockDraft = {
@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Insert draft into database
-    const { data: newDraft, error } = await supabaseAdmin
+    const { data: newDraft, error } = await supabaseAdmin()
       .from('projects')
       .insert(insertData)
       .select()

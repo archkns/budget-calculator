@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     const year = searchParams.get('year');
 
     // Build query with optional filters
-    let query = supabaseAdmin
+    let query = supabaseAdmin()
       .from('public_holidays')
       .select('*')
       .order('date', { ascending: true });
@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = PublicHolidaySchema.omit({ id: true, created_at: true }).parse(body);
 
-    const { data: newHoliday, error } = await supabaseAdmin
+    const { data: newHoliday, error } = await supabaseAdmin()
       .from('public_holidays')
       .insert({
         project_id: validatedData.project_id,

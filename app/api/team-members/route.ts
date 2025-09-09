@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     const roleId = searchParams.get('role_id');
 
     // Build query with optional filters
-    let query = supabaseAdmin
+    let query = supabaseAdmin()
       .from('team_members')
       .select(`
         *,
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = TeamMemberFormSchema.parse(body);
 
-    const { data: newMember, error } = await supabaseAdmin
+    const { data: newMember, error } = await supabaseAdmin()
       .from('team_members')
       .insert({
         name: validatedData.name,

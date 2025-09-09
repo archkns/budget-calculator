@@ -1,35 +1,55 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+// Lazy Supabase clients - only create when needed
+let supabaseClient: SupabaseClient | null = null
+let supabaseAdminClient: SupabaseClient | null = null
 
 // Check if Supabase is properly configured
-export const isSupabaseConfigured = !!(supabaseUrl && supabaseAnonKey)
+export const isSupabaseConfigured = !!(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
 
-if (!isSupabaseConfigured) {
-  throw new Error('Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY environment variables.')
+function getSupabaseClient(): SupabaseClient {
+  if (!supabaseClient) {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+      throw new Error('Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY environment variables.')
+    }
+
+    // Client-side Supabase client (for browser usage)
+    supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        autoRefreshToken: true,
+        persistSession: true
+      }
+    })
+  }
+  return supabaseClient
 }
 
-if (!supabaseServiceKey) {
-  throw new Error('Supabase service role key is not configured. Please set SUPABASE_SERVICE_ROLE_KEY environment variable.')
+function getSupabaseAdminClient(): SupabaseClient {
+  if (!supabaseAdminClient) {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      throw new Error('Supabase service role key is not configured. Please set SUPABASE_SERVICE_ROLE_KEY environment variable.')
+    }
+
+    // Server-side client with service role key for admin operations
+    supabaseAdminClient = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    })
+  }
+  return supabaseAdminClient
 }
 
-// Client-side Supabase client (for browser usage)
-export const supabase = createClient(supabaseUrl!, supabaseAnonKey!, {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true
-  }
-})
-
-// Server-side client with service role key for admin operations
-export const supabaseAdmin = createClient(supabaseUrl!, supabaseServiceKey!, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false
-  }
-})
+// Export lazy getters
+export const supabase = getSupabaseClient
+export const supabaseAdmin = getSupabaseAdminClient
 
 // Helper function to check if Supabase is available (always true now)
 export function checkSupabaseConnection() {

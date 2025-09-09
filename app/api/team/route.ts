@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status')
 
     // Build query with optional status filter
-    let query = supabaseAdmin
+    let query = supabaseAdmin()
       .from('team_members')
       .select(`
         *,
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
     // Validate the request body
     const validatedData = TeamMemberFormSchema.parse(body)
 
-    const { data: newMember, error } = await supabaseAdmin
+    const { data: newMember, error } = await supabaseAdmin()
       .from('team_members')
       .insert({
         name: validatedData.name,
@@ -108,7 +108,7 @@ export async function PUT(request: NextRequest) {
     const body = await request.json()
     const validatedData = TeamMemberFormSchema.partial().parse(body)
 
-    const { data: updatedMember, error } = await supabaseAdmin
+    const { data: updatedMember, error } = await supabaseAdmin()
       .from('team_members')
       .update(validatedData)
       .eq('id', id)
@@ -158,7 +158,7 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
-    const { error } = await supabaseAdmin
+    const { error } = await supabaseAdmin()
       .from('team_members')
       .delete()
       .eq('id', id)

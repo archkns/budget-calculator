@@ -6,7 +6,7 @@ export const runtime = 'nodejs';
 
 export async function GET() {
   try {
-    const { data: rateCards, error } = await supabaseAdmin
+    const { data: rateCards, error } = await supabaseAdmin()
       .from('rate_cards')
       .select(`
         *,
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = RateCardSchema.omit({ id: true, created_at: true, updated_at: true }).parse(body);
 
-    const { data: newRateCard, error } = await supabaseAdmin
+    const { data: newRateCard, error } = await supabaseAdmin()
       .from('rate_cards')
       .insert({
         role_id: validatedData.role_id,
@@ -91,7 +91,7 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const validatedData = RateCardSchema.partial().parse(body);
 
-    const { data: updatedRateCard, error } = await supabaseAdmin
+    const { data: updatedRateCard, error } = await supabaseAdmin()
       .from('rate_cards')
       .update(validatedData)
       .eq('id', id)
