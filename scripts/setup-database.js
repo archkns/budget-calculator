@@ -2,13 +2,21 @@ const { Pool } = require('pg');
 const fs = require('fs');
 const path = require('path');
 
-// Database connection configuration
+// Load environment variables
+require('dotenv').config({ path: '.env.local' });
+
+// Database connection configuration - requires environment variables for security
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://postgres:JI6xxIpg8GKGoo5j@db.ijyatywunqqqxtwmedsg.supabase.co:5432/postgres',
+  connectionString: process.env.DATABASE_URL,
   ssl: {
     rejectUnauthorized: false
   }
 });
+
+if (!process.env.DATABASE_URL) {
+  console.error('❌ Missing database configuration. Please set DATABASE_URL environment variable.');
+  process.exit(1);
+}
 
 async function setupDatabase() {
   try {

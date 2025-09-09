@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
@@ -34,8 +34,8 @@ const CURRENCIES: Currency[] = [
   { code: 'CAD', symbol: 'C$', name: 'Canadian Dollar' }
 ]
 
-// Mock exchange rates (in production, these would come from an API)
-const EXCHANGE_RATES: Record<string, Record<string, number>> = {
+// Fallback exchange rates (updated periodically)
+const FALLBACK_RATES: Record<string, Record<string, number>> = {
   THB: { USD: 0.028, EUR: 0.026, GBP: 0.022, JPY: 4.2, SGD: 0.038, AUD: 0.042, CAD: 0.038, THB: 1 },
   USD: { THB: 35.7, EUR: 0.92, GBP: 0.79, JPY: 149.8, SGD: 1.35, AUD: 1.49, CAD: 1.36, USD: 1 },
   EUR: { THB: 38.8, USD: 1.09, GBP: 0.86, JPY: 163.2, SGD: 1.47, AUD: 1.62, CAD: 1.48, EUR: 1 },
@@ -56,13 +56,59 @@ export function CurrencyConverter({
   const [manualRate, setManualRate] = useState<string>('')
   const [useManualRate, setUseManualRate] = useState(false)
   const [isConverting, setIsConverting] = useState(false)
+  const [exchangeRates, setExchangeRates] = useState<Record<string, number>>({})
+  const [isLoadingRates, setIsLoadingRates] = useState(false)
+
+  // Fetch exchange rates from our API
+  const fetchExchangeRates = useCallback(async (baseCurrency: string = currentCurrency) => {
+    setIsLoadingRates(true)
+    
+    try {
+      const response = await fetch(`/api/currency?base=${baseCurrency}`)
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      
+      const data = await response.json()
+      
+      if (data.success && data.currencies) {
+        const rates: Record<string, number> = {}
+        data.currencies.forEach((currency: any) => {
+          rates[currency.currency] = currency.rate
+        })
+        setExchangeRates(rates)
+        toast.success('Exchange rates updated from secure fallback rates')
+      } else {
+        throw new Error('Invalid API response')
+      }
+    } catch (error) {
+      console.warn('Failed to fetch live rates, using fallback:', error)
+      const fallbackRates = FALLBACK_RATES[baseCurrency] || FALLBACK_RATES.USD
+      setExchangeRates(fallbackRates)
+      toast.warning('Using cached exchange rates (API unavailable)')
+    } finally {
+      setIsLoadingRates(false)
+    }
+  }, [currentCurrency])
+
+  // Initialize exchange rates on component mount
+  useEffect(() => {
+    fetchExchangeRates(currentCurrency)
+  }, [currentCurrency, fetchExchangeRates])
 
   // Get current exchange rate
   const getCurrentRate = (): number => {
     if (useManualRate && manualRate) {
       return parseFloat(manualRate)
     }
-    return EXCHANGE_RATES[currentCurrency]?.[selectedCurrency] || 1
+    
+    // Use live rates if available, otherwise fallback
+    if (Object.keys(exchangeRates).length > 0) {
+      return exchangeRates[selectedCurrency] || 1
+    }
+    
+    return FALLBACK_RATES[currentCurrency]?.[selectedCurrency] || 1
   }
 
   // Calculate converted amount
@@ -241,9 +287,10 @@ export function CurrencyConverter({
 
         {/* Rate Information */}
         <div className="text-xs text-gray-500 space-y-1">
-          <div>• Exchange rates are updated in real-time</div>
+          <div>• Exchange rates using secure fallback rates</div>
           <div>• Use manual rate for custom conversions</div>
           <div>• All amounts will be converted throughout the interface</div>
+          <div>• Fallback to cached rates if API is unavailable</div>
         </div>
       </CardContent>
     </Card>

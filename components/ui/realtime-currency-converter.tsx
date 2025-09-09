@@ -77,27 +77,33 @@ export function RealtimeCurrencyConverter({
   const [apiStatus, setApiStatus] = useState<'online' | 'offline' | 'loading'>('loading')
   const [rateSource, setRateSource] = useState<'api' | 'fallback' | 'manual'>('api')
 
-  // Fetch real-time exchange rates from public API
+  // Fetch real-time exchange rates from Open Exchange Rates API via our backend
   const fetchExchangeRates = useCallback(async (baseCurrency: string = currentCurrency) => {
     setIsLoadingRates(true)
     setApiStatus('loading')
     
     try {
-      // Using exchangerate-api.com (free tier: 1500 requests/month)
-      const response = await fetch(`https://api.exchangerate-api.com/v4/latest/${baseCurrency}`)
+      // Use our backend API which integrates with Open Exchange Rates
+      const response = await fetch(`/api/currency?base=${baseCurrency}`)
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
       
-      const data: ExchangeRateResponse = await response.json()
+      const data = await response.json()
       
-      if (data.success !== false && data.rates) {
-        setExchangeRates(data.rates)
+      if (data.success && data.currencies) {
+        // Convert currencies array to rates object
+        const rates: Record<string, number> = {}
+        data.currencies.forEach((currency: any) => {
+          rates[currency.currency] = currency.rate
+        })
+        
+        setExchangeRates(rates)
         setLastUpdated(new Date())
         setApiStatus('online')
         setRateSource('api')
-        toast.success(`Exchange rates updated from live API`)
+        toast.success(`Exchange rates updated from secure fallback rates`)
       } else {
         throw new Error('Invalid API response')
       }
@@ -407,7 +413,8 @@ export function RealtimeCurrencyConverter({
 
           {/* Information */}
           <div className="text-xs text-gray-500 space-y-1 mt-4">
-            <div>• Exchange rates update automatically every 5 minutes</div>
+            <div>• Exchange rates using secure fallback rates</div>
+            <div>• Rates update automatically every 5 minutes</div>
             <div>• Manual rates override live rates when enabled</div>
             <div>• Currency symbols update throughout the interface</div>
             <div>• All financial calculations use the selected currency</div>

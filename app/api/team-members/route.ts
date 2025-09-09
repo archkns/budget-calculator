@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { query } from '@/lib/db/connection';
-import { TeamMemberSchema } from '@/lib/schemas';
+import { supabaseAdmin, handleSupabaseError } from '@/lib/supabase';
+import { TeamMemberFormSchema } from '@/lib/schemas';
 
 export const runtime = 'nodejs';
 
@@ -8,69 +8,39 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
-    const role = searchParams.get('role');
-    const search = searchParams.get('search');
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '25');
-    const sortBy = searchParams.get('sortBy') || 'name';
-    const sortOrder = searchParams.get('sortOrder') || 'asc';
-    
-    let whereClause = 'WHERE 1=1';
-    const params: (string | number)[] = [];
-    let paramCount = 0;
-    
+    const roleId = searchParams.get('role_id');
+
+    // Build query with optional filters
+    let query = supabaseAdmin
+      .from('team_members')
+      .select(`
+        *,
+        roles:role_id (
+          id,
+          name
+        )
+      `)
+      .order('name', { ascending: true });
+
     if (status) {
-      whereClause += ` AND tm.status = $${++paramCount}`;
-      params.push(status);
+      query = query.eq('status', status.toUpperCase());
     }
-    
-    if (role) {
-      whereClause += ` AND (r.name ILIKE $${++paramCount} OR tm.custom_role ILIKE $${++paramCount})`;
-      params.push(`%${role}%`, `%${role}%`);
-      paramCount++;
+
+    if (roleId) {
+      query = query.eq('role_id', roleId);
     }
-    
-    if (search) {
-      whereClause += ` AND tm.name ILIKE $${++paramCount}`;
-      params.push(`%${search}%`);
+
+    const { data: teamMembers, error } = await query;
+
+    if (error) {
+      const errorResponse = handleSupabaseError(error, 'fetch team members');
+      return NextResponse.json(
+        { error: errorResponse.error },
+        { status: errorResponse.status }
+      );
     }
-    
-    const offset = (page - 1) * limit;
-    
-    const countQuery = `
-      SELECT COUNT(*) as total
-      FROM team_members tm
-      LEFT JOIN roles r ON tm.role_id = r.id
-      ${whereClause}
-    `;
-    
-    const dataQuery = `
-      SELECT 
-        tm.*,
-        r.name as role_name
-      FROM team_members tm
-      LEFT JOIN roles r ON tm.role_id = r.id
-      ${whereClause}
-      ORDER BY tm.${sortBy} ${sortOrder}
-      LIMIT $${++paramCount} OFFSET $${++paramCount}
-    `;
-    
-    params.push(limit, offset);
-    
-    const [countResult, dataResult] = await Promise.all([
-      query(countQuery, params.slice(0, -2)),
-      query(dataQuery, params)
-    ]);
-    
-    return NextResponse.json({
-      data: dataResult.rows,
-      pagination: {
-        page,
-        limit,
-        total: parseInt(countResult.rows[0].total),
-        totalPages: Math.ceil(parseInt(countResult.rows[0].total) / limit)
-      }
-    });
+
+    return NextResponse.json(teamMembers || []);
   } catch (error) {
     console.error('Error fetching team members:', error);
     return NextResponse.json(
@@ -83,29 +53,37 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const validatedData = TeamMemberSchema.omit({ 
-      id: true, 
-      created_at: true, 
-      updated_at: true 
-    }).parse(body);
-    
-    const result = await query(
-      `INSERT INTO team_members 
-       (name, role_id, custom_role, tier, default_rate_per_day, notes, status) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7) 
-       RETURNING *`,
-      [
-        validatedData.name,
-        validatedData.role_id || null,
-        validatedData.custom_role || null,
-        validatedData.tier || null,
-        validatedData.default_rate_per_day,
-        validatedData.notes || null,
-        validatedData.status
-      ]
-    );
-    
-    return NextResponse.json(result.rows[0], { status: 201 });
+    const validatedData = TeamMemberFormSchema.parse(body);
+
+    const { data: newMember, error } = await supabaseAdmin
+      .from('team_members')
+      .insert({
+        name: validatedData.name,
+        role_id: validatedData.role_id,
+        custom_role: validatedData.custom_role,
+        tier: validatedData.tier,
+        default_rate_per_day: validatedData.default_rate_per_day,
+        notes: validatedData.notes,
+        status: validatedData.status || 'ACTIVE'
+      })
+      .select(`
+        *,
+        roles:role_id (
+          id,
+          name
+        )
+      `)
+      .single();
+
+    if (error) {
+      const errorResponse = handleSupabaseError(error, 'create team member');
+      return NextResponse.json(
+        { error: errorResponse.error },
+        { status: errorResponse.status }
+      );
+    }
+
+    return NextResponse.json(newMember, { status: 201 });
   } catch (error) {
     console.error('Error creating team member:', error);
     return NextResponse.json(

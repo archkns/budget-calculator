@@ -22,43 +22,33 @@ export default function RateCards() {
   const [editValue, setEditValue] = useState<string>('')
   const [loading, setLoading] = useState(true)
 
-  // Mock data based on Omelet rates
+  // Fetch rate cards from database
   useEffect(() => {
-    const mockData: RateCard[] = [
-      { id: 1, role_name: 'Project Director', tier: 'TEAM_LEAD', daily_rate: 60000, is_active: true },
-      { id: 2, role_name: 'Experience Designer (UX/UI)', tier: 'TEAM_LEAD', daily_rate: 18000, is_active: true },
-      { id: 3, role_name: 'Experience Designer (UX/UI)', tier: 'SENIOR', daily_rate: 14000, is_active: true },
-      { id: 4, role_name: 'Experience Designer (UX/UI)', tier: 'JUNIOR', daily_rate: 10000, is_active: true },
-      { id: 5, role_name: 'Project Owner', tier: 'TEAM_LEAD', daily_rate: 20000, is_active: true },
-      { id: 6, role_name: 'Project Owner', tier: 'SENIOR', daily_rate: 16000, is_active: true },
-      { id: 7, role_name: 'Project Owner', tier: 'JUNIOR', daily_rate: 12000, is_active: true },
-      { id: 8, role_name: 'Business Innovation Analyst (BA)', tier: 'TEAM_LEAD', daily_rate: 20000, is_active: true },
-      { id: 9, role_name: 'Business Innovation Analyst (BA)', tier: 'SENIOR', daily_rate: 16000, is_active: true },
-      { id: 10, role_name: 'Business Innovation Analyst (BA)', tier: 'JUNIOR', daily_rate: 12000, is_active: true },
-      { id: 11, role_name: 'System Analyst', tier: 'TEAM_LEAD', daily_rate: 18000, is_active: true },
-      { id: 12, role_name: 'System Analyst', tier: 'SENIOR', daily_rate: 14000, is_active: true },
-      { id: 13, role_name: 'System Analyst', tier: 'JUNIOR', daily_rate: 12000, is_active: true },
-      { id: 14, role_name: 'Frontend Dev', tier: 'TEAM_LEAD', daily_rate: 18000, is_active: true },
-      { id: 15, role_name: 'Frontend Dev', tier: 'SENIOR', daily_rate: 14000, is_active: true },
-      { id: 16, role_name: 'Frontend Dev', tier: 'JUNIOR', daily_rate: 12000, is_active: true },
-      { id: 17, role_name: 'Backend Dev', tier: 'TEAM_LEAD', daily_rate: 20000, is_active: true },
-      { id: 18, role_name: 'Backend Dev', tier: 'SENIOR', daily_rate: 14000, is_active: true },
-      { id: 19, role_name: 'Backend Dev', tier: 'JUNIOR', daily_rate: 12000, is_active: true },
-      { id: 20, role_name: 'LINE Dev', tier: 'TEAM_LEAD', daily_rate: 22000, is_active: true },
-      { id: 21, role_name: 'LINE Dev', tier: 'SENIOR', daily_rate: 16000, is_active: true },
-      { id: 22, role_name: 'LINE Dev', tier: 'JUNIOR', daily_rate: 12000, is_active: true },
-      { id: 23, role_name: 'DevOps', tier: 'TEAM_LEAD', daily_rate: 25000, is_active: true },
-      { id: 24, role_name: 'DevOps', tier: 'SENIOR', daily_rate: 18000, is_active: true },
-      { id: 25, role_name: 'QA Tester', tier: 'TEAM_LEAD', daily_rate: 16000, is_active: true },
-      { id: 26, role_name: 'QA Tester', tier: 'SENIOR', daily_rate: 13000, is_active: true },
-      { id: 27, role_name: 'QA Tester', tier: 'JUNIOR', daily_rate: 10000, is_active: true },
-      { id: 28, role_name: 'Operation', tier: 'TEAM_LEAD', daily_rate: 12000, is_active: true },
-      { id: 29, role_name: 'Operation', tier: 'SENIOR', daily_rate: 10500, is_active: true },
-      { id: 30, role_name: 'Operation', tier: 'JUNIOR', daily_rate: 9000, is_active: true },
-    ]
-    
-    setRateCards(mockData)
-    setLoading(false)
+    const fetchRateCards = async () => {
+      try {
+        const response = await fetch('/api/rate-cards')
+        if (response.ok) {
+          const data = await response.json()
+          // Transform the data to match the expected format
+          const transformedData = data.map((card: { id: number; roles?: { name: string }; tier: string; daily_rate: number; is_active: boolean }) => ({
+            id: card.id,
+            role_name: card.roles?.name || 'Unknown Role',
+            tier: card.tier,
+            daily_rate: card.daily_rate,
+            is_active: card.is_active
+          }))
+          setRateCards(transformedData)
+        } else {
+          console.error('Failed to fetch rate cards:', response.statusText)
+        }
+      } catch (error) {
+        console.error('Error fetching rate cards:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchRateCards()
   }, [])
 
   const formatCurrency = (amount: number) => {
@@ -74,12 +64,32 @@ export default function RateCards() {
     setEditValue(currentRate.toString())
   }
 
-  const saveEdit = (cardId: number) => {
+  const saveEdit = async (cardId: number) => {
     const newRate = parseFloat(editValue)
     if (!isNaN(newRate) && newRate > 0) {
-      setRateCards(prev => prev.map(card => 
-        card.id === cardId ? { ...card, daily_rate: newRate } : card
-      ))
+      try {
+        const response = await fetch(`/api/rate-cards/${cardId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            daily_rate: newRate
+          })
+        })
+
+        if (response.ok) {
+          setRateCards(prev => prev.map(card => 
+            card.id === cardId ? { ...card, daily_rate: newRate } : card
+          ))
+        } else {
+          console.error('Failed to update rate card:', response.statusText)
+          alert('Failed to update rate card. Please try again.')
+        }
+      } catch (error) {
+        console.error('Error updating rate card:', error)
+        alert('Error updating rate card. Please try again.')
+      }
     }
     setEditingCard(null)
     setEditValue('')
@@ -90,10 +100,33 @@ export default function RateCards() {
     setEditValue('')
   }
 
-  const toggleActive = (cardId: number) => {
-    setRateCards(prev => prev.map(card => 
-      card.id === cardId ? { ...card, is_active: !card.is_active } : card
-    ))
+  const toggleActive = async (cardId: number) => {
+    const card = rateCards.find(c => c.id === cardId)
+    if (!card) return
+
+    try {
+      const response = await fetch(`/api/rate-cards/${cardId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          is_active: !card.is_active
+        })
+      })
+
+      if (response.ok) {
+        setRateCards(prev => prev.map(c => 
+          c.id === cardId ? { ...c, is_active: !c.is_active } : c
+        ))
+      } else {
+        console.error('Failed to toggle rate card status:', response.statusText)
+        alert('Failed to update rate card status. Please try again.')
+      }
+    } catch (error) {
+      console.error('Error toggling rate card status:', error)
+      alert('Error updating rate card status. Please try again.')
+    }
   }
 
   // Group rate cards by role

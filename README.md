@@ -131,14 +131,14 @@ The application is configured to use Supabase PostgreSQL. The database connectio
 Create a `.env.local` file if you want to override the default Supabase connection:
 ```bash
 # Supabase Database Configuration
-PGHOST=db.ijyatywunqqqxtwmedsg.supabase.co
+PGHOST=your-supabase-host
 PGPORT=5432
 PGDATABASE=postgres
 PGUSER=postgres
-PGPASSWORD=your_password_here
+PGPASSWORD=your_actual_password
 
 # Database URL for direct connection
-DATABASE_URL=postgresql://postgres:your_password_here@db.ijyatywunqqqxtwmedsg.supabase.co:5432/postgres
+DATABASE_URL=postgresql://postgres:your_actual_password@your-supabase-host:5432/postgres
 ```
 
 5. **Run development server**
@@ -202,18 +202,18 @@ bun test
 ### Environment Variables
 ```env
 # Supabase Database Configuration (already configured)
-PGHOST=db.ijyatywunqqqxtwmedsg.supabase.co
+PGHOST=your-supabase-host
 PGPORT=5432
 PGDATABASE=postgres
 PGUSER=postgres
-PGPASSWORD=your_supabase_password
+PGPASSWORD=your_actual_password
 
 # Database URL for direct connection
-DATABASE_URL=postgresql://postgres:your_password@db.ijyatywunqqqxtwmedsg.supabase.co:5432/postgres
+DATABASE_URL=postgresql://postgres:your_actual_password@your-supabase-host:5432/postgres
 
 # Optional: Supabase client configuration
-NEXT_PUBLIC_SUPABASE_URL=https://ijyatywunqqqxtwmedsg.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key_here
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_actual_anon_key
 ```
 
 ## 📈 Performance Optimizations

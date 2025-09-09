@@ -89,3 +89,13 @@ INSERT INTO public_holidays (project_id, date, name, treatment, is_custom) VALUE
   (NULL, '2025-12-10', 'Constitution Day', 'EXCLUDE', false),
   (NULL, '2025-12-31', 'New Year''s Eve', 'EXCLUDE', false)
 ON CONFLICT DO NOTHING;
+
+-- Insert sample team members
+INSERT INTO team_members (name, role_id, tier, default_rate_per_day, status, notes) VALUES 
+  ('John Smith', (SELECT id FROM roles WHERE name = 'Frontend Dev'), 'SENIOR', 14000, 'ACTIVE', 'React specialist'),
+  ('Sarah Johnson', (SELECT id FROM roles WHERE name = 'Experience Designer (UX/UI)'), 'TEAM_LEAD', 18000, 'ACTIVE', 'Lead designer with 8+ years experience'),
+  ('Mike Chen', (SELECT id FROM roles WHERE name = 'Backend Dev'), 'SENIOR', 14000, 'INACTIVE', 'Node.js and Python expert'),
+  ('Lisa Wong', (SELECT id FROM roles WHERE name = 'Frontend Dev'), 'SENIOR', 15000, 'ACTIVE', 'iOS and Android development'),
+  ('David Park', (SELECT id FROM roles WHERE name = 'DevOps'), 'SENIOR', 18000, 'ACTIVE', 'AWS and Docker specialist'),
+  ('Emma Wilson', (SELECT id FROM roles WHERE name = 'QA Tester'), 'SENIOR', 13000, 'ACTIVE', 'Automation testing expert')
+ON CONFLICT DO NOTHING;

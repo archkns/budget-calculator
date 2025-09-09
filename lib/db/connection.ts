@@ -1,19 +1,24 @@
 import { Pool } from 'pg';
 
-// Supabase connection configuration
+// Database connection configuration - requires environment variables for security
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://postgres:JI6xxIpg8GKGoo5j@db.ijyatywunqqqxtwmedsg.supabase.co:5432/postgres',
+  connectionString: process.env.DATABASE_URL,
   // Alternative individual config (fallback)
-  host: process.env.PGHOST || 'db.ijyatywunqqqxtwmedsg.supabase.co',
+  host: process.env.PGHOST,
   port: parseInt(process.env.PGPORT || '5432'),
-  database: process.env.PGDATABASE || 'postgres',
-  user: process.env.PGUSER || 'postgres',
-  password: process.env.PGPASSWORD || 'JI6xxIpg8GKGoo5j',
-  // Supabase specific settings
+  database: process.env.PGDATABASE,
+  user: process.env.PGUSER,
+  password: process.env.PGPASSWORD,
+  // SSL settings
   ssl: {
     rejectUnauthorized: false
   }
 });
+
+// Validate required environment variables
+if (!process.env.DATABASE_URL && !process.env.PGHOST) {
+  throw new Error('Database configuration is required. Please set DATABASE_URL or individual PG environment variables.');
+}
 
 export default pool;
 

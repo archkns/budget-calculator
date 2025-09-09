@@ -1,111 +1,83 @@
 import { NextRequest, NextResponse } from 'next/server'
-
-// Mock team data - in a real app, this would come from a database
-const mockTeamMembers = [
-  {
-    id: 1,
-    name: 'John Smith',
-    role: 'Frontend Dev',
-    level: 'Senior',
-    dailyRate: 14000,
-    status: 'ACTIVE',
-    notes: 'React specialist'
-  },
-  {
-    id: 2,
-    name: 'Sarah Johnson',
-    role: 'Experience Designer (UX/UI)',
-    level: 'Team Lead',
-    dailyRate: 18000,
-    status: 'ACTIVE',
-    notes: 'Lead designer with 8+ years experience'
-  },
-  {
-    id: 3,
-    name: 'Mike Chen',
-    role: 'Backend Dev',
-    level: 'Senior',
-    dailyRate: 14000,
-    status: 'INACTIVE',
-    notes: 'Node.js and Python expert'
-  },
-  {
-    id: 4,
-    name: 'Lisa Wong',
-    role: 'Mobile Developer',
-    level: 'Senior',
-    dailyRate: 15000,
-    status: 'ACTIVE',
-    notes: 'iOS and Android development'
-  },
-  {
-    id: 5,
-    name: 'David Park',
-    role: 'DevOps Engineer',
-    level: 'Mid',
-    dailyRate: 12000,
-    status: 'ACTIVE',
-    notes: 'AWS and Docker specialist'
-  },
-  {
-    id: 6,
-    name: 'Emma Wilson',
-    role: 'QA Engineer',
-    level: 'Mid',
-    dailyRate: 10000,
-    status: 'ACTIVE',
-    notes: 'Automation testing expert'
-  }
-]
+import { supabaseAdmin, handleSupabaseError } from '@/lib/supabase'
+import { TeamMemberFormSchema } from '@/lib/schemas'
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status')
-    
-    let filteredMembers = mockTeamMembers
-    
+
+    // Build query with optional status filter
+    let query = supabaseAdmin
+      .from('team_members')
+      .select(`
+        *,
+        roles:role_id (
+          id,
+          name
+        )
+      `)
+      .order('name', { ascending: true });
+
     if (status) {
-      filteredMembers = mockTeamMembers.filter(member => 
-        member.status.toLowerCase() === status.toLowerCase()
-      )
+      query = query.eq('status', status.toUpperCase());
     }
-    
-    return NextResponse.json(filteredMembers)
+
+    const { data: teamMembers, error } = await query;
+
+    if (error) {
+      const errorResponse = handleSupabaseError(error, 'fetch team members');
+      return NextResponse.json(
+        { error: errorResponse.error },
+        { status: errorResponse.status }
+      );
+    }
+
+    return NextResponse.json(teamMembers || []);
   } catch (error) {
-    console.error('Error fetching team members:', error)
+    console.error('Error fetching team members:', error);
     return NextResponse.json(
       { error: 'Failed to fetch team members' },
       { status: 500 }
-    )
+    );
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { name, role, level, dailyRate, status, notes } = body
     
-    // Validate required fields
-    if (!name || !role || !level || !dailyRate) {
+    // Validate the request body
+    const validatedData = TeamMemberFormSchema.parse(body)
+
+    const { data: newMember, error } = await supabaseAdmin
+      .from('team_members')
+      .insert({
+        name: validatedData.name,
+        role_id: validatedData.role_id,
+        custom_role: validatedData.custom_role,
+        tier: validatedData.tier,
+        default_rate_per_day: validatedData.default_rate_per_day,
+        notes: validatedData.notes,
+        status: validatedData.status || 'ACTIVE'
+      })
+      .select(`
+        *,
+        roles:role_id (
+          id,
+          name
+        )
+      `)
+      .single()
+
+    if (error) {
+      const errorResponse = handleSupabaseError(error, 'create team member');
       return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      )
+        { error: errorResponse.error },
+        { status: errorResponse.status }
+      );
     }
-    
-    const newMember = {
-      id: Math.max(...mockTeamMembers.map(m => m.id)) + 1,
-      name,
-      role,
-      level,
-      dailyRate: parseFloat(dailyRate),
-      status: status || 'ACTIVE',
-      notes: notes || ''
-    }
-    
-    mockTeamMembers.push(newMember)
-    
+
     return NextResponse.json(newMember, { status: 201 })
   } catch (error) {
     console.error('Error creating team member:', error)
@@ -129,22 +101,37 @@ export async function PUT(request: NextRequest) {
     }
     
     const body = await request.json()
-    const memberIndex = mockTeamMembers.findIndex(m => m.id === parseInt(id))
-    
-    if (memberIndex === -1) {
+    const validatedData = TeamMemberFormSchema.partial().parse(body)
+
+    const { data: updatedMember, error } = await supabaseAdmin
+      .from('team_members')
+      .update(validatedData)
+      .eq('id', id)
+      .select(`
+        *,
+        roles:role_id (
+          id,
+          name
+        )
+      `)
+      .single()
+
+    if (error) {
+      const errorResponse = handleSupabaseError(error, 'update team member');
+      return NextResponse.json(
+        { error: errorResponse.error },
+        { status: errorResponse.status }
+      );
+    }
+
+    if (!updatedMember) {
       return NextResponse.json(
         { error: 'Team member not found' },
         { status: 404 }
-      )
+      );
     }
-    
-    mockTeamMembers[memberIndex] = {
-      ...mockTeamMembers[memberIndex],
-      ...body,
-      id: parseInt(id)
-    }
-    
-    return NextResponse.json(mockTeamMembers[memberIndex])
+
+    return NextResponse.json(updatedMember)
   } catch (error) {
     console.error('Error updating team member:', error)
     return NextResponse.json(
@@ -165,18 +152,20 @@ export async function DELETE(request: NextRequest) {
         { status: 400 }
       )
     }
-    
-    const memberIndex = mockTeamMembers.findIndex(m => m.id === parseInt(id))
-    
-    if (memberIndex === -1) {
+
+    const { error } = await supabaseAdmin
+      .from('team_members')
+      .delete()
+      .eq('id', id)
+
+    if (error) {
+      const errorResponse = handleSupabaseError(error, 'delete team member');
       return NextResponse.json(
-        { error: 'Team member not found' },
-        { status: 404 }
-      )
+        { error: errorResponse.error },
+        { status: errorResponse.status }
+      );
     }
-    
-    mockTeamMembers.splice(memberIndex, 1)
-    
+
     return NextResponse.json({ message: 'Team member deleted successfully' })
   } catch (error) {
     console.error('Error deleting team member:', error)

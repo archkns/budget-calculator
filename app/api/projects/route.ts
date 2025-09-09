@@ -4,12 +4,6 @@ import { CreateProjectData } from '@/lib/types/database'
 
 export async function GET() {
   try {
-    // Check if Supabase is configured
-    if (!supabaseAdmin) {
-      console.warn('Supabase not configured, returning empty array')
-      return NextResponse.json([])
-    }
-
     const { data: projects, error } = await supabaseAdmin
       .from('projects')
       .select('*')
@@ -46,28 +40,6 @@ export async function POST(request: NextRequest) {
         { error: 'Project name is required' },
         { status: 400 }
       )
-    }
-    
-    // Check if Supabase is configured
-    if (!supabaseAdmin) {
-      console.warn('Supabase not configured, returning mock response')
-      // Return a mock response for development
-      const mockProject = {
-        id: Date.now(),
-        name: projectData.name,
-        client: projectData.client || null,
-        currency_code: projectData.currency_code || 'THB',
-        currency_symbol: projectData.currency_symbol || '฿',
-        hours_per_day: projectData.hours_per_day || 7,
-        tax_enabled: projectData.tax_enabled || false,
-        tax_percentage: projectData.tax_percentage || 7,
-        proposed_price: projectData.proposed_price || null,
-        working_week: projectData.working_week || 'MON_TO_FRI',
-        status: projectData.status || 'ACTIVE',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }
-      return NextResponse.json(mockProject, { status: 201 })
     }
     
     // Prepare data for database insertion

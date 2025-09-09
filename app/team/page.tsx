@@ -34,50 +34,26 @@ export default function TeamLibrary() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [loading, setLoading] = useState(true)
 
-  // Mock data for development
+  // Fetch team members from database
   useEffect(() => {
-    const mockData: TeamMember[] = [
-      {
-        id: 1,
-        name: 'John Smith',
-        role_name: 'Frontend Dev',
-        tier: 'SENIOR',
-        default_rate_per_day: 14000,
-        status: 'ACTIVE',
-        notes: 'React specialist'
-      },
-      {
-        id: 2,
-        name: 'Sarah Johnson',
-        role_name: 'Experience Designer (UX/UI)',
-        tier: 'TEAM_LEAD',
-        default_rate_per_day: 18000,
-        status: 'ACTIVE',
-        notes: 'Lead designer with 8+ years experience'
-      },
-      {
-        id: 3,
-        name: 'Mike Chen',
-        role_name: 'Backend Dev',
-        tier: 'SENIOR',
-        default_rate_per_day: 14000,
-        status: 'INACTIVE',
-        notes: 'Node.js and Python expert'
-      },
-      {
-        id: 4,
-        name: 'Lisa Wong',
-        custom_role: 'Mobile Developer',
-        tier: 'SENIOR',
-        default_rate_per_day: 15000,
-        status: 'ACTIVE',
-        notes: 'iOS and Android development'
+    const fetchTeamMembers = async () => {
+      try {
+        const response = await fetch('/api/team')
+        if (response.ok) {
+          const data = await response.json()
+          setTeamMembers(data)
+          setFilteredMembers(data)
+        } else {
+          console.error('Failed to fetch team members:', response.statusText)
+        }
+      } catch (error) {
+        console.error('Error fetching team members:', error)
+      } finally {
+        setLoading(false)
       }
-    ]
-    
-    setTeamMembers(mockData)
-    setFilteredMembers(mockData)
-    setLoading(false)
+    }
+
+    fetchTeamMembers()
   }, [])
 
   // Filter logic
@@ -289,10 +265,38 @@ function AddTeamMemberForm({ onClose }: { onClose: () => void }) {
     status: 'ACTIVE'
   })
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // TODO: Implement API call to add team member
-    console.log('Adding team member:', formData)
+    
+    try {
+      const response = await fetch('/api/team', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: formData.name,
+          role_id: formData.role === 'custom' ? null : formData.role,
+          custom_role: formData.role === 'custom' ? formData.customRole : null,
+          tier: formData.tier,
+          default_rate_per_day: parseFloat(formData.defaultRate),
+          notes: formData.notes,
+          status: formData.status
+        })
+      })
+
+      if (response.ok) {
+        // Refresh the page to show the new team member
+        window.location.reload()
+      } else {
+        console.error('Failed to add team member:', response.statusText)
+        alert('Failed to add team member. Please try again.')
+      }
+    } catch (error) {
+      console.error('Error adding team member:', error)
+      alert('Error adding team member. Please try again.')
+    }
+    
     onClose()
   }
 

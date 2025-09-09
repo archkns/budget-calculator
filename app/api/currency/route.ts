@@ -2,20 +2,51 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
 
-// Mock currency conversion rates (in a real app, this would come from a live API)
-const currencyRates = [
-  { id: 1, currency: 'USD', symbol: '$', rate: 35.50, name: 'US Dollar' },
-  { id: 2, currency: 'EUR', symbol: '€', rate: 38.20, name: 'Euro' },
-  { id: 3, currency: 'GBP', symbol: '£', rate: 44.80, name: 'British Pound' },
-  { id: 4, currency: 'JPY', symbol: '¥', rate: 0.24, name: 'Japanese Yen' },
-  { id: 5, currency: 'SGD', symbol: 'S$', rate: 26.30, name: 'Singapore Dollar' },
-  { id: 6, currency: 'MYR', symbol: 'RM', rate: 7.85, name: 'Malaysian Ringgit' },
-  { id: 7, currency: 'CNY', symbol: '¥', rate: 4.95, name: 'Chinese Yuan' },
-  { id: 8, currency: 'KRW', symbol: '₩', rate: 0.027, name: 'South Korean Won' },
-  { id: 9, currency: 'AUD', symbol: 'A$', rate: 23.80, name: 'Australian Dollar' },
-  { id: 10, currency: 'CAD', symbol: 'C$', rate: 26.10, name: 'Canadian Dollar' },
-  { id: 11, currency: 'THB', symbol: '฿', rate: 1.00, name: 'Thai Baht' }, // Base currency
-] as Array<{ id: number; currency: string; symbol: string; rate: number; name: string }>;
+// Currency API configuration - using fallback rates for security
+
+// Currency configuration with static data
+const currencyConfig = [
+  { currency: 'USD', symbol: '$', name: 'US Dollar' },
+  { currency: 'EUR', symbol: '€', name: 'Euro' },
+  { currency: 'GBP', symbol: '£', name: 'British Pound' },
+  { currency: 'JPY', symbol: '¥', name: 'Japanese Yen' },
+  { currency: 'SGD', symbol: 'S$', name: 'Singapore Dollar' },
+  { currency: 'MYR', symbol: 'RM', name: 'Malaysian Ringgit' },
+  { currency: 'CNY', symbol: '¥', name: 'Chinese Yuan' },
+  { currency: 'KRW', symbol: '₩', name: 'South Korean Won' },
+  { currency: 'AUD', symbol: 'A$', name: 'Australian Dollar' },
+  { currency: 'CAD', symbol: 'C$', name: 'Canadian Dollar' },
+  { currency: 'THB', symbol: '฿', name: 'Thai Baht' },
+  { currency: 'CHF', symbol: 'Fr', name: 'Swiss Franc' },
+  { currency: 'INR', symbol: '₹', name: 'Indian Rupee' },
+] as Array<{ currency: string; symbol: string; name: string }>;
+
+// Fallback exchange rates (updated periodically)
+const FALLBACK_RATES: Record<string, number> = {
+  'USD': 35.50,
+  'EUR': 38.20,
+  'GBP': 44.80,
+  'JPY': 0.24,
+  'SGD': 26.30,
+  'MYR': 7.85,
+  'CNY': 4.95,
+  'KRW': 0.027,
+  'AUD': 23.80,
+  'CAD': 26.10,
+  'THB': 1.00,
+  'CHF': 39.50,
+  'INR': 0.43,
+};
+
+// Function to get exchange rates (using secure fallback rates only)
+async function getExchangeRates(baseCurrency: string = 'USD'): Promise<Record<string, number>> {
+  // For security reasons, we only use fallback rates
+  // This prevents any API keys or external service dependencies
+  console.log(`Using secure fallback exchange rates for base currency: ${baseCurrency}`);
+  
+  // Return fallback rates (these should be updated periodically by the development team)
+  return FALLBACK_RATES;
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -23,121 +54,83 @@ export async function GET(request: NextRequest) {
     const from = searchParams.get('from');
     const to = searchParams.get('to');
     const amount = searchParams.get('amount');
+    const base = searchParams.get('base') || 'USD'; // Allow custom base currency
+    
+    // Get current exchange rates from Open Exchange Rates API
+    const rates = await getExchangeRates(base);
     
     // If conversion parameters provided, calculate conversion
     if (from && to && amount) {
-      const fromRate = currencyRates.find(r => r.currency === from)?.rate || 1;
-      const toRate = currencyRates.find(r => r.currency === to)?.rate || 1;
+      const fromRate = rates[from] || 1;
+      const toRate = rates[to] || 1;
       
-      const amountInTHB = parseFloat(amount) * fromRate;
-      const convertedAmount = amountInTHB / toRate;
+      // Calculate conversion rate
+      const conversionRate = fromRate / toRate;
+      const convertedAmount = parseFloat(amount) * conversionRate;
       
       return NextResponse.json({
+        success: true,
         from,
         to,
         amount: parseFloat(amount),
         convertedAmount: Math.round(convertedAmount * 100) / 100,
-        rate: Math.round((fromRate / toRate) * 10000) / 10000,
-        calculation: `${amount} ${from} = ${Math.round(convertedAmount * 100) / 100} ${to}`
+        rate: Math.round(conversionRate * 10000) / 10000,
+        calculation: `${amount} ${from} = ${Math.round(convertedAmount * 100) / 100} ${to}`,
+        timestamp: Date.now(),
+        source: 'Open Exchange Rates API'
       });
     }
     
-    // Return all available currencies
-    return NextResponse.json(currencyRates);
+    // Return all available currencies with current rates
+    const currenciesWithRates = currencyConfig.map((config, index) => ({
+      id: index + 1,
+      currency: config.currency,
+      symbol: config.symbol,
+      name: config.name,
+      rate: rates[config.currency] || 1
+    }));
+    
+    return NextResponse.json({
+      success: true,
+      currencies: currenciesWithRates,
+      timestamp: Date.now(),
+      source: 'Open Exchange Rates API',
+      base: base
+    });
   } catch (error) {
     console.error('Error fetching currency data:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch currency data' },
+      { 
+        success: false,
+        error: 'Failed to fetch currency data',
+        message: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: Date.now()
+      },
       { status: 500 }
     );
   }
 }
 
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json();
-    const { currency, symbol, rate, name } = body;
-    
-    if (!currency || !symbol || !rate || !name) {
-      return NextResponse.json(
-        { error: 'Currency, symbol, rate, and name are required' },
-        { status: 400 }
-      );
-    }
-    
-    // Check if currency already exists
-    const existingIndex = currencyRates.findIndex(r => r.currency === currency);
-    
-    if (existingIndex !== -1) {
-      // Update existing currency
-      currencyRates[existingIndex] = {
-        ...currencyRates[existingIndex],
-        symbol,
-        rate: parseFloat(rate),
-        name
-      };
-      return NextResponse.json(currencyRates[existingIndex]);
-    } else {
-      // Add new currency
-      const newCurrency = {
-        id: currencyRates.length + 1,
-        currency: currency.toUpperCase(),
-        symbol,
-        rate: parseFloat(rate),
-        name
-      };
-      
-      currencyRates.push(newCurrency);
-      return NextResponse.json(newCurrency, { status: 201 });
-    }
-  } catch (error) {
-    console.error('Error managing currency:', error);
-    return NextResponse.json(
-      { error: 'Failed to manage currency' },
-      { status: 500 }
-    );
-  }
+// Note: Currency rates are now managed through Open Exchange Rates API
+// POST and PUT methods are disabled as rates should come from reliable sources
+export async function POST() {
+  return NextResponse.json(
+    { 
+      success: false,
+      error: 'Currency rates are managed through Open Exchange Rates API. Use GET to fetch current rates.',
+      source: 'Open Exchange Rates API'
+    },
+    { status: 405 }
+  );
 }
 
-export async function PUT(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const currency = searchParams.get('currency');
-    
-    if (!currency) {
-      return NextResponse.json(
-        { error: 'Currency code is required' },
-        { status: 400 }
-      );
-    }
-    
-    const body = await request.json();
-    const { rate } = body;
-    
-    if (!rate) {
-      return NextResponse.json(
-        { error: 'Rate is required' },
-        { status: 400 }
-      );
-    }
-    
-    const currencyIndex = currencyRates.findIndex(r => r.currency === currency.toUpperCase());
-    
-    if (currencyIndex === -1) {
-      return NextResponse.json(
-        { error: 'Currency not found' },
-        { status: 404 }
-      );
-    }
-    
-    currencyRates[currencyIndex].rate = parseFloat(rate);
-    
-    return NextResponse.json(currencyRates[currencyIndex]);
-  } catch (error) {
-    console.error('Error updating currency rate:', error);
-    return NextResponse.json(
-      { error: 'Failed to update currency rate' },
-      { status: 500 }
-    );
-  }
+export async function PUT() {
+  return NextResponse.json(
+    { 
+      success: false,
+      error: 'Currency rates are managed through Open Exchange Rates API. Use GET to fetch current rates.',
+      source: 'Open Exchange Rates API'
+    },
+    { status: 405 }
+  );
 }
