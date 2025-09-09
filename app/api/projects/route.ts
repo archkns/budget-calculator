@@ -1,66 +1,69 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { query } from '@/lib/db/connection';
-import { ProjectSchema } from '@/lib/schemas';
+import { NextRequest, NextResponse } from 'next/server'
 
-export const runtime = 'nodejs';
+// Mock projects data - in a real app, this would come from a database
+const mockProjects = []
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const result = await query(`
-      SELECT 
-        p.*,
-        COUNT(pa.id) as team_count
-      FROM projects p
-      LEFT JOIN project_assignments pa ON p.id = pa.project_id
-      GROUP BY p.id
-      ORDER BY p.updated_at DESC
-    `);
-    
-    return NextResponse.json(result.rows);
+    return NextResponse.json(mockProjects)
   } catch (error) {
-    console.error('Error fetching projects:', error);
+    console.error('Error fetching projects:', error)
     return NextResponse.json(
       { error: 'Failed to fetch projects' },
       { status: 500 }
-    );
+    )
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const validatedData = ProjectSchema.omit({ 
-      id: true, 
-      created_at: true, 
-      updated_at: true 
-    }).parse(body);
+    const body = await request.json()
     
-    const result = await query(
-      `INSERT INTO projects 
-       (name, client, currency_code, currency_symbol, hours_per_day, 
-        tax_enabled, tax_percentage, proposed_price, execution_days, buffer_days) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
-       RETURNING *`,
-      [
-        validatedData.name,
-        validatedData.client || null,
-        validatedData.currency_code,
-        validatedData.currency_symbol,
-        validatedData.hours_per_day,
-        validatedData.tax_enabled ? 1 : 0,
-        validatedData.tax_percentage,
-        validatedData.proposed_price || null,
-        validatedData.execution_days,
-        validatedData.buffer_days
-      ]
-    );
+    // Handle both old format (with project wrapper) and new format (direct data)
+    const projectData = body.project || body
     
-    return NextResponse.json(result.rows[0], { status: 201 });
+    // Validate required fields
+    if (!projectData || !projectData.name) {
+      return NextResponse.json(
+        { error: 'Project name is required' },
+        { status: 400 }
+      )
+    }
+    
+    const newProject = {
+      id: mockProjects.length + 1,
+      name: projectData.name,
+      client: projectData.client || '',
+      currency_code: projectData.currency_code || 'THB',
+      currency_symbol: projectData.currency_symbol || '฿',
+      hours_per_day: projectData.hours_per_day || 7,
+      tax_enabled: projectData.tax_enabled || false,
+      tax_percentage: projectData.tax_percentage || 7,
+      proposed_price: projectData.proposed_price || null,
+      working_week: projectData.working_week || 'MON_TO_FRI',
+      // Default timeline values that will be configured in the workspace
+      execution_days: 0,
+      buffer_days: 0,
+      guarantee_days: 8,
+      start_date: null,
+      end_date: null,
+      calendar_mode: false,
+      // Additional fields
+      assignments: body.assignments || [],
+      holidays: body.holidays || [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      status: projectData.status || 'ACTIVE'
+    }
+    
+    mockProjects.push(newProject)
+    
+    return NextResponse.json(newProject, { status: 201 })
   } catch (error) {
-    console.error('Error creating project:', error);
+    console.error('Error creating project:', error)
     return NextResponse.json(
       { error: 'Failed to create project' },
       { status: 500 }
-    );
+    )
   }
 }

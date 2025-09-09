@@ -55,10 +55,12 @@ export default function Dashboard() {
               <Link href="/rate-cards" className="text-slate-600 hover:text-slate-900 px-3 py-2 rounded-md text-sm font-medium">
                 Rate Cards
               </Link>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                New Project
-              </Button>
+              <Link href="/projects/new">
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  New Project
+                </Button>
+              </Link>
             </nav>
           </div>
         </div>
@@ -118,10 +120,12 @@ export default function Dashboard() {
                   Your latest project cost estimations and proposals
                 </CardDescription>
               </div>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                New Project
-              </Button>
+              <Link href="/projects/new">
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  New Project
+                </Button>
+              </Link>
             </div>
           </CardHeader>
           <CardContent>
@@ -164,41 +168,47 @@ export default function Dashboard() {
 
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
-          <Card className="hover:shadow-md transition-shadow cursor-pointer">
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Calculator className="h-5 w-5 mr-2 text-blue-600" />
-                Create Project
-              </CardTitle>
-              <CardDescription>
-                Start a new project cost estimation with team allocation
-              </CardDescription>
-            </CardHeader>
-          </Card>
+          <Link href="/projects/new">
+            <Card className="hover:shadow-md transition-shadow cursor-pointer">
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Calculator className="h-5 w-5 mr-2 text-blue-600" />
+                  Create Project
+                </CardTitle>
+                <CardDescription>
+                  Start a new project cost estimation with team allocation
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          </Link>
           
-          <Card className="hover:shadow-md transition-shadow cursor-pointer">
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Users className="h-5 w-5 mr-2 text-green-600" />
-                Manage Team
-              </CardTitle>
-              <CardDescription>
-                Add, edit, or import team members and their rates
-              </CardDescription>
-            </CardHeader>
-          </Card>
+          <Link href="/team">
+            <Card className="hover:shadow-md transition-shadow cursor-pointer">
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Users className="h-5 w-5 mr-2 text-green-600" />
+                  Manage Team
+                </CardTitle>
+                <CardDescription>
+                  Add, edit, or import team members and their rates
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          </Link>
           
-          <Card className="hover:shadow-md transition-shadow cursor-pointer">
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Settings className="h-5 w-5 mr-2 text-purple-600" />
-                Rate Cards
-              </CardTitle>
-              <CardDescription>
-                Configure daily rates for different roles and tiers
-              </CardDescription>
-            </CardHeader>
-          </Card>
+          <Link href="/rate-cards">
+            <Card className="hover:shadow-md transition-shadow cursor-pointer">
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Settings className="h-5 w-5 mr-2 text-purple-600" />
+                  Rate Cards
+                </CardTitle>
+                <CardDescription>
+                  Configure daily rates for different roles and tiers
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          </Link>
         </div>
       </main>
     </div>

@@ -13,25 +13,13 @@ import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { InteractiveGantt } from '@/components/ui/interactive-gantt'
-import { Calculator, Plus, Edit, Trash2, FileText, TrendingUp, TrendingDown, CalendarIcon } from 'lucide-react'
+import { Calculator, Plus, Edit, Trash2, FileText, TrendingUp, TrendingDown, CalendarIcon, BarChart3 } from 'lucide-react'
 import { format, addDays, isWeekend, differenceInDays } from 'date-fns'
 import { toast } from 'sonner'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-
-interface TeamMember {
-  id: number
-  name: string
-  role: string
-  level: string
-  dailyRate: number
-  status: 'ACTIVE' | 'INACTIVE'
-  notes?: string
-}
 
 interface ProjectAssignment {
   id: number
-  teamMemberId: number
   name: string
   role: string
   tier: string
@@ -73,7 +61,6 @@ interface GanttTask {
 }
 
 export default function ProjectWorkspace() {
-  const router = useRouter()
   const [project, setProject] = useState({
     id: 1,
     name: 'E-commerce Platform Redesign',
@@ -85,35 +72,65 @@ export default function ProjectWorkspace() {
     proposedPrice: 3000000,
     startDate: new Date('2025-09-15'),
     executionDays: 45,
-    guaranteePeriod: 8, // New: Guarantee period in days
-    finalDays: 53 // New: Total days including guarantee period
+    bufferDays: 5,
+    finalDays: 50
   })
 
-  const [assignments, setAssignments] = useState<ProjectAssignment[]>([])
-  const [teamLibrary, setTeamLibrary] = useState<TeamMember[]>([])
+  const [assignments, setAssignments] = useState<ProjectAssignment[]>([
+    {
+      id: 1,
+      name: 'Sarah Johnson',
+      role: 'Experience Designer (UX/UI)',
+      tier: 'Team Lead',
+      dailyRate: 18000,
+      daysAllocated: 20,
+      bufferDays: 3,
+      totalMandays: 23,
+      totalPrice: 414000,
+      startDate: new Date('2025-09-15'),
+      endDate: new Date('2025-10-16')
+    },
+    {
+      id: 2,
+      name: 'John Smith',
+      role: 'Frontend Dev',
+      tier: 'Senior',
+      dailyRate: 14000,
+      daysAllocated: 35,
+      bufferDays: 5,
+      totalMandays: 40,
+      totalPrice: 560000,
+      startDate: new Date('2025-09-15'),
+      endDate: new Date('2025-11-11')
+    },
+    {
+      id: 3,
+      name: 'Mike Chen',
+      role: 'Backend Dev',
+      tier: 'Senior',
+      dailyRate: 14000,
+      daysAllocated: 40,
+      bufferDays: 6,
+      totalMandays: 46,
+      totalPrice: 644000,
+      startDate: new Date('2025-09-15'),
+      endDate: new Date('2025-11-19')
+    }
+  ])
+
   const [holidays, setHolidays] = useState<Holiday[]>([])
   const [loading, setLoading] = useState(false)
-  const [showAddTeamMember, setShowAddTeamMember] = useState(false)
-  const [selectedTeamMember, setSelectedTeamMember] = useState<TeamMember | null>(null)
+  const [newHoliday, setNewHoliday] = useState({
+    name: '',
+    date: new Date(),
+    type: 'public' as 'public' | 'company'
+  })
+  const [showAddHoliday, setShowAddHoliday] = useState(false)
 
-  // Fetch team library and holidays on load
+  // Fetch holidays from database
   useEffect(() => {
-    fetchTeamLibrary()
     fetchHolidays()
   }, [])
-
-  const fetchTeamLibrary = async () => {
-    try {
-      const response = await fetch('/api/team')
-      if (response.ok) {
-        const data = await response.json()
-        setTeamLibrary(data)
-      }
-    } catch (error) {
-      console.error('Error fetching team library:', error)
-      toast.error('Failed to fetch team library')
-    }
-  }
 
   const fetchHolidays = async () => {
     try {
@@ -131,6 +148,51 @@ export default function ProjectWorkspace() {
       toast.error('Failed to fetch holidays')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const addHoliday = async () => {
+    try {
+      const response = await fetch('/api/holidays', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newHoliday.name,
+          date: format(newHoliday.date, 'yyyy-MM-dd'),
+          type: newHoliday.type,
+          project_id: newHoliday.type === 'company' ? project.id : null
+        })
+      })
+
+      if (response.ok) {
+        await fetchHolidays()
+        setNewHoliday({ name: '', date: new Date(), type: 'public' })
+        setShowAddHoliday(false)
+        toast.success('Holiday added successfully')
+      } else {
+        toast.error('Failed to add holiday')
+      }
+    } catch (error) {
+      console.error('Error adding holiday:', error)
+      toast.error('Failed to add holiday')
+    }
+  }
+
+  const deleteHoliday = async (id: number) => {
+    try {
+      const response = await fetch(`/api/holidays?id=${id}`, {
+        method: 'DELETE'
+      })
+
+      if (response.ok) {
+        await fetchHolidays()
+        toast.success('Holiday deleted successfully')
+      } else {
+        toast.error('Failed to delete holiday')
+      }
+    } catch (error) {
+      console.error('Error deleting holiday:', error)
+      toast.error('Failed to delete holiday')
     }
   }
 
@@ -153,15 +215,17 @@ export default function ProjectWorkspace() {
   }
 
   const calculateProjectDates = () => {
-    const totalExecutionDays = Math.max(...assignments.map(a => a.daysAllocated), 0)
+    const totalExecutionDays = Math.max(...assignments.map(a => a.daysAllocated))
+    const totalBufferDays = Math.max(...assignments.map(a => a.bufferDays))
+    
     const executionEndDate = calculateWorkdays(project.startDate, totalExecutionDays, holidays)
-    const projectEndDate = calculateWorkdays(executionEndDate, project.guaranteePeriod, holidays)
+    const projectEndDate = calculateWorkdays(executionEndDate, totalBufferDays, holidays)
     
     return {
       executionEndDate,
       projectEndDate,
       totalExecutionDays,
-      guaranteePeriod: project.guaranteePeriod
+      totalBufferDays
     }
   }
 
@@ -189,27 +253,6 @@ export default function ProjectWorkspace() {
     return `${percentage.toFixed(2)}%`
   }
 
-  const handleAddTeamMember = (teamMember: TeamMember) => {
-    const newAssignment: ProjectAssignment = {
-      id: assignments.length + 1,
-      teamMemberId: teamMember.id,
-      name: teamMember.name,
-      role: teamMember.role,
-      tier: teamMember.level,
-      dailyRate: teamMember.dailyRate,
-      daysAllocated: 0,
-      bufferDays: 0,
-      totalMandays: 0,
-      totalPrice: 0,
-      startDate: project.startDate,
-      endDate: project.startDate
-    }
-    
-    setAssignments(prev => [...prev, newAssignment])
-    setShowAddTeamMember(false)
-    setSelectedTeamMember(null)
-  }
-
   const updateAssignment = (id: number, field: string, value: string | number) => {
     setAssignments(prev => prev.map(assignment => {
       if (assignment.id === id) {
@@ -231,6 +274,10 @@ export default function ProjectWorkspace() {
       }
       return assignment
     }))
+  }
+
+  const handleEditAssignment = (id: number) => {
+    console.log('Edit assignment:', id)
   }
 
   const handleDeleteAssignment = (id: number) => {
@@ -326,53 +373,6 @@ export default function ProjectWorkspace() {
     }))
   }
 
-  const handleSaveProject = async () => {
-    try {
-      const response = await fetch('/api/projects', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          project,
-          assignments,
-          holidays: holidays.filter(h => h.type === 'company')
-        })
-      })
-
-      if (response.ok) {
-        toast.success('Project saved successfully')
-        router.push('/')
-      } else {
-        toast.error('Failed to save project')
-      }
-    } catch (error) {
-      console.error('Error saving project:', error)
-      toast.error('Failed to save project')
-    }
-  }
-
-  const handleSaveDraft = async () => {
-    try {
-      const response = await fetch('/api/projects/draft', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          project,
-          assignments,
-          holidays: holidays.filter(h => h.type === 'company')
-        })
-      })
-
-      if (response.ok) {
-        toast.success('Draft saved successfully')
-      } else {
-        toast.error('Failed to save draft')
-      }
-    } catch (error) {
-      console.error('Error saving draft:', error)
-      toast.error('Failed to save draft')
-    }
-  }
-
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
@@ -388,8 +388,9 @@ export default function ProjectWorkspace() {
               <span className="text-slate-600">{project.name}</span>
             </div>
             <div className="flex items-center space-x-3">
-              <Button variant="outline" onClick={handleSaveDraft}>Save Draft</Button>
-              <Button onClick={handleSaveProject}>Save Project</Button>
+              <Button variant="outline">Save Template</Button>
+              <Button variant="outline">Export</Button>
+              <Button>Save Project</Button>
             </div>
           </div>
         </div>
@@ -467,7 +468,7 @@ export default function ProjectWorkspace() {
         <Tabs defaultValue="overview" className="space-y-6">
           <TabsList>
             <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="gantt">Interactive Gantt</TabsTrigger>
+            <TabsTrigger value="gantt">Gantt Chart</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
@@ -563,21 +564,10 @@ export default function ProjectWorkspace() {
                       />
                     </div>
                   </div>
-
-                  <div>
-                    <Label htmlFor="guaranteePeriod">Guarantee Period (Days)</Label>
-                    <Input
-                      id="guaranteePeriod"
-                      type="number"
-                      value={project.guaranteePeriod}
-                      onChange={(e) => setProject(prev => ({ ...prev, guaranteePeriod: parseInt(e.target.value) }))}
-                      min="0"
-                    />
-                  </div>
                   
                   <div className="text-sm text-slate-600">
                     <p>Max Execution Days: {projectDates.totalExecutionDays} workdays</p>
-                    <p>Guarantee Period: {projectDates.guaranteePeriod} workdays</p>
+                    <p>Max Buffer Days: {projectDates.totalBufferDays} workdays</p>
                   </div>
                 </CardContent>
               </Card>
@@ -589,58 +579,12 @@ export default function ProjectWorkspace() {
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle>Team Assignments</CardTitle>
-                    <CardDescription>Add team members from team library</CardDescription>
+                    <CardDescription>Manage team member allocations and rates</CardDescription>
                   </div>
-                  <Dialog open={showAddTeamMember} onOpenChange={setShowAddTeamMember}>
-                    <DialogTrigger asChild>
-                      <Button>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add Person
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Add Team Member</DialogTitle>
-                        <DialogDescription>
-                          Select a team member from the team library
-                        </DialogDescription>
-                      </DialogHeader>
-                      <div className="space-y-4">
-                        <Select
-                          value={selectedTeamMember?.id.toString()}
-                          onValueChange={(value) => {
-                            const member = teamLibrary.find(m => m.id === parseInt(value))
-                            setSelectedTeamMember(member || null)
-                          }}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select team member" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {teamLibrary
-                              .filter(member => member.status === 'ACTIVE')
-                              .map(member => (
-                                <SelectItem key={member.id} value={member.id.toString()}>
-                                  {member.name} - {member.role}
-                                </SelectItem>
-                              ))
-                            }
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <DialogFooter>
-                        <Button variant="outline" onClick={() => setShowAddTeamMember(false)}>
-                          Cancel
-                        </Button>
-                        <Button 
-                          onClick={() => selectedTeamMember && handleAddTeamMember(selectedTeamMember)}
-                          disabled={!selectedTeamMember}
-                        >
-                          Add Member
-                        </Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
+                  <Button>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Person
+                  </Button>
                 </div>
               </CardHeader>
               <CardContent>
@@ -700,14 +644,23 @@ export default function ProjectWorkspace() {
                           {formatCurrency(assignment.totalPrice)}
                         </TableCell>
                         <TableCell>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="text-red-600"
-                            onClick={() => handleDeleteAssignment(assignment.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <div className="flex items-center space-x-2">
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => handleEditAssignment(assignment.id)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="text-red-600"
+                              onClick={() => handleDeleteAssignment(assignment.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -722,8 +675,79 @@ export default function ProjectWorkspace() {
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle>Public Holidays</CardTitle>
-                    <CardDescription>Holidays during project timeline</CardDescription>
+                    <CardDescription>Manage holidays that affect project timeline</CardDescription>
                   </div>
+                  <Dialog open={showAddHoliday} onOpenChange={setShowAddHoliday}>
+                    <DialogTrigger asChild>
+                      <Button>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Holiday
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Add Holiday</DialogTitle>
+                        <DialogDescription>
+                          Add a new holiday that will affect the project timeline
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        <div>
+                          <Label htmlFor="holidayName">Holiday Name</Label>
+                          <Input
+                            id="holidayName"
+                            value={newHoliday.name}
+                            onChange={(e) => setNewHoliday(prev => ({ ...prev, name: e.target.value }))}
+                            placeholder="e.g., National Day"
+                          />
+                        </div>
+                        <div>
+                          <Label>Date</Label>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button variant="outline" className="w-full justify-start text-left font-normal">
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {format(newHoliday.date, 'PPP')}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <Calendar
+                                mode="single"
+                                selected={newHoliday.date}
+                                onSelect={(date) => date && setNewHoliday(prev => ({ ...prev, date }))}
+                                initialFocus
+                              />
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+                        <div>
+                          <Label>Type</Label>
+                          <Select 
+                            value={newHoliday.type} 
+                            onValueChange={(value: 'public' | 'company') => 
+                              setNewHoliday(prev => ({ ...prev, type: value }))
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="public">Public Holiday</SelectItem>
+                              <SelectItem value="company">Company Holiday</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button variant="outline" onClick={() => setShowAddHoliday(false)}>
+                          Cancel
+                        </Button>
+                        <Button onClick={addHoliday} disabled={!newHoliday.name}>
+                          Add Holiday
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
                 </div>
               </CardHeader>
               <CardContent>
@@ -733,29 +757,57 @@ export default function ProjectWorkspace() {
                       <TableHead>Holiday Name</TableHead>
                       <TableHead>Date</TableHead>
                       <TableHead>Type</TableHead>
+                      <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {holidays
-                      .filter(holiday => {
-                        const holidayDate = new Date(holiday.date)
-                        return holidayDate >= project.startDate && 
-                               holidayDate <= projectDates.projectEndDate
-                      })
-                      .map((holiday) => (
-                        <TableRow key={holiday.id}>
-                          <TableCell className="font-medium">{holiday.name}</TableCell>
-                          <TableCell>{format(holiday.date, 'MMM dd, yyyy')}</TableCell>
-                          <TableCell>
-                            <Badge variant={holiday.type === 'public' ? 'default' : 'secondary'}>
-                              {holiday.type}
-                            </Badge>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    }
+                    {holidays.map((holiday) => (
+                      <TableRow key={holiday.id}>
+                        <TableCell className="font-medium">{holiday.name}</TableCell>
+                        <TableCell>{format(holiday.date, 'MMM dd, yyyy')}</TableCell>
+                        <TableCell>
+                          <Badge variant={holiday.type === 'public' ? 'default' : 'secondary'}>
+                            {holiday.type}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="text-red-600"
+                            onClick={() => deleteHoliday(holiday.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
                   </TableBody>
                 </Table>
+              </CardContent>
+            </Card>
+
+            {/* Export Options */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Export Options</CardTitle>
+                <CardDescription>Export project data in various formats</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Button variant="outline" className="h-20 flex flex-col">
+                    <FileText className="h-6 w-6 mb-2" />
+                    Export CSV
+                  </Button>
+                  <Button variant="outline" className="h-20 flex flex-col">
+                    <FileText className="h-6 w-6 mb-2" />
+                    Export XLSX
+                  </Button>
+                  <Button variant="outline" className="h-20 flex flex-col">
+                    <FileText className="h-6 w-6 mb-2" />
+                    Export PDF
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
