@@ -264,11 +264,35 @@ function AddTeamMemberForm({ onClose }: { onClose: () => void }) {
     notes: '',
     status: 'ACTIVE'
   })
+  const [roles, setRoles] = useState<Array<{id: number, name: string}>>([])
+  const [loading, setLoading] = useState(false)
+
+  // Fetch roles when component mounts
+  useEffect(() => {
+    const fetchRoles = async () => {
+      try {
+        const response = await fetch('/api/roles')
+        if (response.ok) {
+          const data = await response.json()
+          setRoles(data)
+        } else {
+          console.error('Failed to fetch roles:', response.statusText)
+        }
+      } catch (error) {
+        console.error('Error fetching roles:', error)
+      }
+    }
+    fetchRoles()
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setLoading(true)
     
     try {
+      // Find the role ID from the selected role name
+      const selectedRole = roles.find(role => role.name === formData.role)
+      
       const response = await fetch('/api/team', {
         method: 'POST',
         headers: {
@@ -276,7 +300,7 @@ function AddTeamMemberForm({ onClose }: { onClose: () => void }) {
         },
         body: JSON.stringify({
           name: formData.name,
-          role_id: formData.role === 'custom' ? null : formData.role,
+          role_id: formData.role === 'custom' ? null : selectedRole?.id,
           custom_role: formData.role === 'custom' ? formData.customRole : null,
           tier: formData.tier,
           default_rate_per_day: parseFloat(formData.defaultRate),
@@ -289,12 +313,15 @@ function AddTeamMemberForm({ onClose }: { onClose: () => void }) {
         // Refresh the page to show the new team member
         window.location.reload()
       } else {
-        console.error('Failed to add team member:', response.statusText)
-        alert('Failed to add team member. Please try again.')
+        const errorData = await response.json()
+        console.error('Failed to add team member:', errorData)
+        alert(`Failed to add team member: ${errorData.error || response.statusText}`)
       }
     } catch (error) {
       console.error('Error adding team member:', error)
       alert('Error adding team member. Please try again.')
+    } finally {
+      setLoading(false)
     }
     
     onClose()
@@ -335,10 +362,11 @@ function AddTeamMemberForm({ onClose }: { onClose: () => void }) {
             <SelectValue placeholder="Select role" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="Frontend Dev">Frontend Dev</SelectItem>
-            <SelectItem value="Backend Dev">Backend Dev</SelectItem>
-            <SelectItem value="Experience Designer (UX/UI)">Experience Designer (UX/UI)</SelectItem>
-            <SelectItem value="Project Owner">Project Owner</SelectItem>
+            {roles.map((role) => (
+              <SelectItem key={role.id} value={role.name}>
+                {role.name}
+              </SelectItem>
+            ))}
             <SelectItem value="custom">Custom Role</SelectItem>
           </SelectContent>
         </Select>
@@ -389,11 +417,11 @@ function AddTeamMemberForm({ onClose }: { onClose: () => void }) {
       </div>
 
       <div className="flex justify-end space-x-3 pt-4">
-        <Button type="button" variant="outline" onClick={onClose}>
+        <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
           Cancel
         </Button>
-        <Button type="submit">
-          Add Team Member
+        <Button type="submit" disabled={loading}>
+          {loading ? 'Adding...' : 'Add Team Member'}
         </Button>
       </div>
     </form>
