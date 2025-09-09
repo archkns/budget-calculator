@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabase'
+import { supabaseAdmin, isSupabaseConfigured } from '@/lib/supabase'
 import { CreateProjectData } from '@/lib/types/database'
 
 export async function GET() {
   try {
+    // Check if Supabase is configured
+    if (!isSupabaseConfigured) {
+      console.warn('Supabase not configured, returning empty array')
+      return NextResponse.json([])
+    }
+
     const { data: projects, error } = await supabaseAdmin()
       .from('projects')
       .select('*')
@@ -34,7 +40,24 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
+    // Parse JSON body with proper error handling
+    let body: any
+    try {
+      const text = await request.text()
+      if (!text || text.trim() === '') {
+        return NextResponse.json(
+          { error: 'Request body is required' },
+          { status: 400 }
+        )
+      }
+      body = JSON.parse(text)
+    } catch (parseError) {
+      console.error('JSON parsing error:', parseError)
+      return NextResponse.json(
+        { error: 'Invalid JSON in request body' },
+        { status: 400 }
+      )
+    }
     
     // Handle both old format (with project wrapper) and new format (direct data)
     const projectData: CreateProjectData = body.project || body
@@ -45,6 +68,28 @@ export async function POST(request: NextRequest) {
         { error: 'Project name is required' },
         { status: 400 }
       )
+    }
+    
+    // Check if Supabase is configured
+    if (!isSupabaseConfigured) {
+      console.warn('Supabase not configured, returning mock response')
+      // Return a mock response for development
+      const mockProject = {
+        id: Date.now(),
+        name: projectData.name,
+        client: projectData.client || null,
+        currency_code: projectData.currency_code || 'THB',
+        currency_symbol: projectData.currency_symbol || '฿',
+        hours_per_day: projectData.hours_per_day || 7,
+        tax_enabled: projectData.tax_enabled || false,
+        tax_percentage: projectData.tax_percentage || 7,
+        proposed_price: projectData.proposed_price || null,
+        working_week: projectData.working_week || 'MON_TO_FRI',
+        status: projectData.status || 'ACTIVE',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
+      return NextResponse.json(mockProject, { status: 201 })
     }
     
     // Prepare data for database insertion
@@ -70,8 +115,14 @@ export async function POST(request: NextRequest) {
     
     if (error) {
       console.error('Error creating project:', error)
+      console.error('Supabase error details:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      })
       return NextResponse.json(
-        { error: 'Failed to create project' },
+        { error: 'Failed to create project', details: error.message },
         { status: 500 }
       )
     }
@@ -79,8 +130,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(newProject, { status: 201 })
   } catch (error) {
     console.error('Error creating project:', error)
+    console.error('Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    })
     return NextResponse.json(
-      { error: 'Failed to create project' },
+      { error: 'Failed to create project', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     )
   }
