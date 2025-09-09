@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
-import { Plus, Search, Filter, Upload, Download, Edit, Trash2, Calculator } from 'lucide-react'
+import { Plus, Search, Upload, Download, Edit, Trash2, Calculator } from 'lucide-react'
 import Link from 'next/link'
 
 interface TeamMember {
@@ -82,7 +82,7 @@ export default function TeamLibrary() {
 
   // Filter logic
   useEffect(() => {
-    let filtered = teamMembers.filter(member => {
+    const filtered = teamMembers.filter(member => {
       const matchesSearch = member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            (member.role_name?.toLowerCase().includes(searchTerm.toLowerCase())) ||
                            (member.custom_role?.toLowerCase().includes(searchTerm.toLowerCase()))

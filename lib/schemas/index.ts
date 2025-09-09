@@ -70,7 +70,7 @@ export const ProjectAssignmentSchema = z.object({
   multiplier: z.number().min(0).default(1.0),
   is_billable: z.boolean().default(true),
   ignore_holidays: z.boolean().default(false),
-  custom_multipliers: z.record(z.number()).default({}),
+  custom_multipliers: z.record(z.string(), z.number()).default({}),
   created_at: z.date().optional(),
   updated_at: z.date().optional(),
 });
@@ -90,7 +90,7 @@ export const ProjectTemplateSchema = z.object({
   id: z.number().optional(),
   name: z.string().min(1, 'Template name is required').max(255),
   description: z.string().optional(),
-  template_data: z.record(z.any()),
+  template_data: z.record(z.string(), z.any()),
   created_at: z.date().optional(),
   updated_at: z.date().optional(),
 });

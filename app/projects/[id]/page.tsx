@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -10,9 +10,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Calculator, Plus, Edit, Trash2, Users, Calendar, FileText, TrendingUp, TrendingDown } from 'lucide-react'
+import { Calculator, Plus, Edit, Trash2, FileText, TrendingUp, TrendingDown } from 'lucide-react'
 import Link from 'next/link'
-import Decimal from 'decimal.js'
 
 interface ProjectAssignment {
   id: number
@@ -36,7 +35,7 @@ interface ProjectSummary {
   margin: number
 }
 
-export default function ProjectWorkspace({ params }: { params: { id: string } }) {
+export default function ProjectWorkspace() {
   const [project, setProject] = useState({
     id: 1,
     name: 'E-commerce Platform Redesign',
@@ -112,7 +111,7 @@ export default function ProjectWorkspace({ params }: { params: { id: string } })
     return `${percentage.toFixed(2)}%`
   }
 
-  const updateAssignment = (id: number, field: string, value: any) => {
+  const updateAssignment = (id: number, field: string, value: string | number | boolean) => {
     setAssignments(prev => prev.map(assignment => {
       if (assignment.id === id) {
         const updated = { ...assignment, [field]: value }

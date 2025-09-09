@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db/connection';
-import { TeamMemberSchema, TeamMemberCSVSchema } from '@/lib/schemas';
-import { sanitizeCSVCell } from '@/lib/calculations';
+import { TeamMemberSchema } from '@/lib/schemas';
 
-export const runtime = 'edge';
+export const runtime = 'nodejs';
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,7 +16,7 @@ export async function GET(request: NextRequest) {
     const sortOrder = searchParams.get('sortOrder') || 'asc';
     
     let whereClause = 'WHERE 1=1';
-    const params: any[] = [];
+    const params: (string | number)[] = [];
     let paramCount = 0;
     
     if (status) {

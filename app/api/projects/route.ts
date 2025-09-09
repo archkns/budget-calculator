@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db/connection';
 import { ProjectSchema } from '@/lib/schemas';
 
-export const runtime = 'edge';
+export const runtime = 'nodejs';
 
 export async function GET() {
   try {
@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
         validatedData.currency_code,
         validatedData.currency_symbol,
         validatedData.hours_per_day,
-        validatedData.tax_enabled,
+        validatedData.tax_enabled ? 1 : 0,
         validatedData.tax_percentage,
         validatedData.proposed_price || null,
         validatedData.execution_days,

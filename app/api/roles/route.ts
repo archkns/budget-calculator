@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db/connection';
 import { RoleSchema } from '@/lib/schemas';
 
-export const runtime = 'edge';
+export const runtime = 'nodejs';
 
 export async function GET() {
   try {

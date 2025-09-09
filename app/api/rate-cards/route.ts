@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db/connection';
 import { RateCardSchema } from '@/lib/schemas';
 
-export const runtime = 'edge';
+export const runtime = 'nodejs';
 
 export async function GET() {
   try {
@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
         validatedData.role_id,
         validatedData.tier,
         validatedData.daily_rate,
-        validatedData.is_active
+        validatedData.is_active ? 1 : 0
       ]
     );
     

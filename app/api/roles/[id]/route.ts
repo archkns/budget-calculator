@@ -2,14 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db/connection';
 import { RoleSchema } from '@/lib/schemas';
 
-export const runtime = 'edge';
+export const runtime = 'nodejs';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = parseInt(params.id);
+    const { id: idParam } = await params;
+    const id = parseInt(idParam);
     const result = await query('SELECT * FROM roles WHERE id = $1', [id]);
     
     if (result.rows.length === 0) {
@@ -28,10 +29,11 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = parseInt(params.id);
+    const { id: idParam } = await params;
+    const id = parseInt(idParam);
     const body = await request.json();
     const validatedData = RoleSchema.omit({ id: true, created_at: true, updated_at: true }).parse(body);
     
@@ -56,10 +58,11 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = parseInt(params.id);
+    const { id: idParam } = await params;
+    const id = parseInt(idParam);
     
     // Check if role is referenced by team members or rate cards
     const references = await query(
