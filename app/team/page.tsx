@@ -1,0 +1,397 @@
+"use client"
+
+import { useState, useEffect } from 'react'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { Switch } from '@/components/ui/switch'
+import { Plus, Search, Filter, Upload, Download, Edit, Trash2, Calculator } from 'lucide-react'
+import Link from 'next/link'
+
+interface TeamMember {
+  id: number
+  name: string
+  role_name?: string
+  custom_role?: string
+  tier?: string
+  default_rate_per_day: number
+  status: string
+  notes?: string
+}
+
+export default function TeamLibrary() {
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
+  const [filteredMembers, setFilteredMembers] = useState<TeamMember[]>([])
+  const [searchTerm, setSearchTerm] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [roleFilter, setRoleFilter] = useState('all')
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+  const [loading, setLoading] = useState(true)
+
+  // Mock data for development
+  useEffect(() => {
+    const mockData: TeamMember[] = [
+      {
+        id: 1,
+        name: 'John Smith',
+        role_name: 'Frontend Dev',
+        tier: 'SENIOR',
+        default_rate_per_day: 14000,
+        status: 'ACTIVE',
+        notes: 'React specialist'
+      },
+      {
+        id: 2,
+        name: 'Sarah Johnson',
+        role_name: 'Experience Designer (UX/UI)',
+        tier: 'TEAM_LEAD',
+        default_rate_per_day: 18000,
+        status: 'ACTIVE',
+        notes: 'Lead designer with 8+ years experience'
+      },
+      {
+        id: 3,
+        name: 'Mike Chen',
+        role_name: 'Backend Dev',
+        tier: 'SENIOR',
+        default_rate_per_day: 14000,
+        status: 'INACTIVE',
+        notes: 'Node.js and Python expert'
+      },
+      {
+        id: 4,
+        name: 'Lisa Wong',
+        custom_role: 'Mobile Developer',
+        tier: 'SENIOR',
+        default_rate_per_day: 15000,
+        status: 'ACTIVE',
+        notes: 'iOS and Android development'
+      }
+    ]
+    
+    setTeamMembers(mockData)
+    setFilteredMembers(mockData)
+    setLoading(false)
+  }, [])
+
+  // Filter logic
+  useEffect(() => {
+    let filtered = teamMembers.filter(member => {
+      const matchesSearch = member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           (member.role_name?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                           (member.custom_role?.toLowerCase().includes(searchTerm.toLowerCase()))
+      
+      const matchesStatus = statusFilter === 'all' || member.status === statusFilter
+      
+      const matchesRole = roleFilter === 'all' || 
+                         member.role_name === roleFilter || 
+                         member.custom_role === roleFilter
+      
+      return matchesSearch && matchesStatus && matchesRole
+    })
+    
+    setFilteredMembers(filtered)
+  }, [teamMembers, searchTerm, statusFilter, roleFilter])
+
+  const formatCurrency = (amount: number) => {
+    return `฿${amount.toLocaleString()}`
+  }
+
+  const formatTier = (tier?: string) => {
+    if (!tier) return 'N/A'
+    return tier.replace('_', ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-50">
+      {/* Header */}
+      <header className="bg-white border-b border-slate-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center space-x-4">
+              <Link href="/" className="flex items-center space-x-2">
+                <Calculator className="h-8 w-8 text-blue-600" />
+                <span className="text-2xl font-bold text-slate-900">Budget Calculator</span>
+              </Link>
+              <span className="text-slate-400">/</span>
+              <span className="text-slate-600">Team Library</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Page Header */}
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900">Team Library</h1>
+            <p className="text-slate-600 mt-2">Manage your team members, roles, and default rates</p>
+          </div>
+          
+          <div className="flex items-center space-x-3">
+            <Button variant="outline">
+              <Upload className="h-4 w-4 mr-2" />
+              Import CSV
+            </Button>
+            <Button variant="outline">
+              <Download className="h-4 w-4 mr-2" />
+              Export
+            </Button>
+            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Team Member
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[500px]">
+                <DialogHeader>
+                  <DialogTitle>Add Team Member</DialogTitle>
+                  <DialogDescription>
+                    Add a new team member to your library with their role and default rate.
+                  </DialogDescription>
+                </DialogHeader>
+                <AddTeamMemberForm onClose={() => setIsAddDialogOpen(false)} />
+              </DialogContent>
+            </Dialog>
+          </div>
+        </div>
+
+        {/* Filters */}
+        <Card className="mb-6">
+          <CardContent className="pt-6">
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex-1">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
+                  <Input
+                    placeholder="Search by name or role..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+              
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[150px]">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="ACTIVE">Active</SelectItem>
+                  <SelectItem value="INACTIVE">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              <Select value={roleFilter} onValueChange={setRoleFilter}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Roles</SelectItem>
+                  <SelectItem value="Frontend Dev">Frontend Dev</SelectItem>
+                  <SelectItem value="Backend Dev">Backend Dev</SelectItem>
+                  <SelectItem value="Experience Designer (UX/UI)">UX/UI Designer</SelectItem>
+                  <SelectItem value="Project Owner">Project Owner</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Team Members Table */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Team Members ({filteredMembers.length})</CardTitle>
+            <CardDescription>
+              Manage your team library with roles, tiers, and default rates
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="text-center py-8">Loading...</div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Level</TableHead>
+                    <TableHead>Default Rate/Day</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Notes</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredMembers.map((member) => (
+                    <TableRow key={member.id}>
+                      <TableCell className="font-medium">{member.name}</TableCell>
+                      <TableCell>
+                        {member.role_name || member.custom_role}
+                        {member.custom_role && (
+                          <Badge variant="outline" className="ml-2 text-xs">Custom</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>{formatTier(member.tier)}</TableCell>
+                      <TableCell className="font-mono">{formatCurrency(member.default_rate_per_day)}</TableCell>
+                      <TableCell>
+                        <Badge variant={member.status === 'ACTIVE' ? 'default' : 'secondary'}>
+                          {member.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="max-w-[200px] truncate">
+                        {member.notes || '-'}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end space-x-2">
+                          <Button variant="ghost" size="sm">
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+            
+            {!loading && filteredMembers.length === 0 && (
+              <div className="text-center py-8 text-slate-500">
+                No team members found matching your criteria.
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </main>
+    </div>
+  )
+}
+
+function AddTeamMemberForm({ onClose }: { onClose: () => void }) {
+  const [formData, setFormData] = useState({
+    name: '',
+    role: '',
+    customRole: '',
+    tier: '',
+    defaultRate: '',
+    notes: '',
+    status: 'ACTIVE'
+  })
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    // TODO: Implement API call to add team member
+    console.log('Adding team member:', formData)
+    onClose()
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="name">Name *</Label>
+          <Input
+            id="name"
+            value={formData.name}
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            required
+          />
+        </div>
+        
+        <div>
+          <Label htmlFor="tier">Level</Label>
+          <Select value={formData.tier} onValueChange={(value) => setFormData({ ...formData, tier: value })}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select level" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="TEAM_LEAD">Team Lead</SelectItem>
+              <SelectItem value="SENIOR">Senior</SelectItem>
+              <SelectItem value="JUNIOR">Junior</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div>
+        <Label htmlFor="role">Role</Label>
+        <Select value={formData.role} onValueChange={(value) => setFormData({ ...formData, role: value })}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select role" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="Frontend Dev">Frontend Dev</SelectItem>
+            <SelectItem value="Backend Dev">Backend Dev</SelectItem>
+            <SelectItem value="Experience Designer (UX/UI)">Experience Designer (UX/UI)</SelectItem>
+            <SelectItem value="Project Owner">Project Owner</SelectItem>
+            <SelectItem value="custom">Custom Role</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {formData.role === 'custom' && (
+        <div>
+          <Label htmlFor="customRole">Custom Role</Label>
+          <Input
+            id="customRole"
+            value={formData.customRole}
+            onChange={(e) => setFormData({ ...formData, customRole: e.target.value })}
+            placeholder="Enter custom role"
+          />
+        </div>
+      )}
+
+      <div>
+        <Label htmlFor="defaultRate">Default Rate per Day (THB) *</Label>
+        <Input
+          id="defaultRate"
+          type="number"
+          value={formData.defaultRate}
+          onChange={(e) => setFormData({ ...formData, defaultRate: e.target.value })}
+          placeholder="15000"
+          required
+        />
+      </div>
+
+      <div>
+        <Label htmlFor="notes">Notes</Label>
+        <Textarea
+          id="notes"
+          value={formData.notes}
+          onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+          placeholder="Additional notes about this team member..."
+          rows={3}
+        />
+      </div>
+
+      <div className="flex items-center space-x-2">
+        <Switch
+          id="status"
+          checked={formData.status === 'ACTIVE'}
+          onCheckedChange={(checked) => setFormData({ ...formData, status: checked ? 'ACTIVE' : 'INACTIVE' })}
+        />
+        <Label htmlFor="status">Active</Label>
+      </div>
+
+      <div className="flex justify-end space-x-3 pt-4">
+        <Button type="button" variant="outline" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button type="submit">
+          Add Team Member
+        </Button>
+      </div>
+    </form>
+  )
+}

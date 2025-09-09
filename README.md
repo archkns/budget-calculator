@@ -1,36 +1,237 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Budget Calculator
 
-## Getting Started
+A comprehensive internal-only web application for project cost estimation, team allocation, and pricing built with Next.js 14, TypeScript, and PostgreSQL.
 
-First, run the development server:
+## 🚀 Live Demo
 
+**Application URL**: https://budget-calculator.lindy.site
+
+## 📋 Features
+
+### Core Functionality
+- **Project Cost Estimation**: Calculate project costs with team allocations, rates, and multipliers
+- **Team Library Management**: CRUD operations for team members with roles, tiers, and rates
+- **Rate Card System**: Manage daily rates for different roles and experience levels
+- **Financial Calculations**: ROI%, Margin%, tax calculations with Decimal.js precision
+- **Day Configuration**: Execution days, buffer days, calendar mode with holiday handling
+
+### Key Pages
+1. **Dashboard** (`/`) - Project overview with stats and recent projects
+2. **Team Library** (`/team`) - Manage team members with search, filter, and pagination
+3. **Rate Cards** (`/rate-cards`) - Configure daily rates by role and tier
+4. **Project Workspace** (`/projects/[id]`) - Detailed project management with tabs
+
+### Advanced Features
+- **Inline Editing**: Edit rates and assignments directly in tables
+- **Real-time Calculations**: Live updates of costs, ROI, and margins
+- **CSV Import/Export**: Bulk operations for team data
+- **Holiday Management**: Thai public holidays with custom treatment options
+- **Templates & Scenarios**: Save and compare project configurations
+
+## 🛠 Tech Stack
+
+### Frontend
+- **Next.js 14** with App Router and TypeScript
+- **Tailwind CSS** + **shadcn/ui** + **Radix UI** for components
+- **Lucide React** for icons
+- **next-themes** for dark mode support
+- **Framer Motion** for animations
+
+### Backend
+- **PostgreSQL** database with comprehensive schema
+- **Next.js API Routes** with Edge/Node runtime optimization
+- **Zod** for validation and type safety
+- **react-hook-form** for form management
+
+### Calculations & Data
+- **Decimal.js** for precise financial calculations
+- **date-fns** for date manipulation
+- **CSV/ICS parsing** for imports
+
+### Testing
+- **Jest** + **Testing Library** for unit/integration tests
+- **MSW** for API mocking
+- **11 passing tests** covering core calculations
+
+## 📊 Rate Card (Omelet Rates)
+
+| Role | Team Lead | Senior | Junior |
+|------|-----------|--------|--------|
+| Project Director | ฿60,000 | - | - |
+| Experience Designer (UX/UI) | ฿18,000 | ฿14,000 | ฿10,000 |
+| Project Owner | ฿20,000 | ฿16,000 | ฿12,000 |
+| Business Innovation Analyst (BA) | ฿20,000 | ฿16,000 | ฿12,000 |
+| System Analyst | ฿18,000 | ฿14,000 | ฿12,000 |
+| Frontend Dev | ฿18,000 | ฿14,000 | ฿12,000 |
+| Backend Dev | ฿20,000 | ฿14,000 | ฿12,000 |
+| LINE Dev | ฿22,000 | ฿16,000 | ฿12,000 |
+| DevOps | ฿25,000 | ฿18,000 | N/A |
+| QA Tester | ฿16,000 | ฿13,000 | ฿10,000 |
+| Operation | ฿12,000 | ฿10,500 | ฿9,000 |
+
+## 🧮 Calculation Formulas
+
+### Project Totals
+```
+Subtotal = Σ(Daily Rate × Days × Utilization% × Multiplier) for billable assignments
+Tax = Subtotal × Tax% (if enabled)
+Cost (Grand Total) = Subtotal + Tax
+ROI% = ((Proposed Price - Cost) / Cost) × 100
+Margin% = ((Proposed Price - Cost) / Proposed Price) × 100
+```
+
+### Day Configuration
+```
+Final Days = Execution Days + Buffer Days
+Buffer Days = max(0, Final Days - Execution Days)
+Execution Days = max(0, Final Days - Buffer Days)
+```
+
+## 🗄 Database Schema
+
+### Core Tables
+- **roles** - Role definitions (Project Director, Frontend Dev, etc.)
+- **rate_cards** - Daily rates by role and tier
+- **team_members** - Team library with default rates
+- **projects** - Project configurations and settings
+- **project_assignments** - Team member allocations per project
+- **public_holidays** - Holiday calendar with treatment options
+- **project_templates** - Saved project configurations
+
+### Key Features
+- **Automatic timestamps** with triggers
+- **Referential integrity** with foreign keys
+- **Performance indexes** on frequently queried columns
+- **Enum types** for tier levels and status values
+
+## 🚀 Getting Started
+
+### Prerequisites
+- Node.js 18+ or Bun
+- PostgreSQL 12+
+- Git
+
+### Installation
+
+1. **Clone the repository**
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
+git clone <repository-url>
+cd budget-calculator
+```
+
+2. **Install dependencies**
+```bash
+bun install
+```
+
+3. **Set up database**
+```bash
+createdb budget_calculator
+psql -d budget_calculator -f lib/db/schema.sql
+psql -d budget_calculator -f lib/db/seed.sql
+```
+
+4. **Configure environment**
+```bash
+cp .env.local.example .env.local
+# Edit .env.local with your database credentials
+```
+
+5. **Run development server**
+```bash
 bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+6. **Run tests**
+```bash
+bun test
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 📁 Project Structure
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+budget-calculator/
+├── app/                    # Next.js App Router
+│   ├── api/               # API routes
+│   ├── projects/[id]/     # Project workspace
+│   ├── team/              # Team library
+│   ├── rate-cards/        # Rate management
+│   └── page.tsx           # Dashboard
+├── components/            # Reusable components
+│   └── ui/               # shadcn/ui components
+├── lib/                   # Utilities and logic
+│   ├── db/               # Database connection and schema
+│   ├── schemas/          # Zod validation schemas
+│   └── calculations.ts   # Core calculation functions
+├── __tests__/            # Test files
+└── public/               # Static assets
+```
 
-## Learn More
+## 🧪 Testing
 
-To learn more about Next.js, take a look at the following resources:
+The application includes comprehensive tests for:
+- **Calculation Functions**: ROI, margin, assignment costs
+- **Day Calculations**: Buffer days, execution days, business days
+- **Formatting**: Currency and percentage formatting
+- **Security**: CSV injection prevention
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Run tests with:
+```bash
+bun test
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 🔒 Security Features
 
-## Deploy on Vercel
+- **Zod validation** on all API endpoints
+- **CSV injection protection** for imports
+- **Input sanitization** for user data
+- **Type safety** with TypeScript
+- **SQL injection prevention** with parameterized queries
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 🚀 Deployment
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Vercel (Recommended)
+1. Connect your GitHub repository to Vercel
+2. Configure environment variables
+3. Deploy with automatic Edge/Node runtime optimization
+
+### Environment Variables
+```env
+PGDATABASE=budget_calculator
+PGUSER=your_username
+PGPASSWORD=your_password
+PGHOST=localhost
+PGPORT=5432
+NEXT_PUBLIC_APP_URL=https://your-domain.com
+```
+
+## 📈 Performance Optimizations
+
+- **Edge Runtime** for read operations (GET requests)
+- **Node Runtime** for heavy operations (CSV/ICS parsing, exports)
+- **Database indexes** on frequently queried columns
+- **Streaming exports** for large files
+- **Component lazy loading** where appropriate
+
+## 🎯 Future Enhancements
+
+- [ ] User authentication and permissions
+- [ ] Real-time collaboration with WebSockets
+- [ ] Advanced reporting and analytics
+- [ ] Mobile app with React Native
+- [ ] Integration with external project management tools
+- [ ] Multi-currency support with exchange rates
+- [ ] Advanced holiday calendar management
+- [ ] Bulk operations for project assignments
+
+## 📄 License
+
+This is an internal-only application for project cost estimation and team allocation.
+
+## 🤝 Contributing
+
+This is an internal project. For questions or suggestions, please contact the development team.
+
+---
+
+**Built with ❤️ for efficient project cost estimation and team allocation**
