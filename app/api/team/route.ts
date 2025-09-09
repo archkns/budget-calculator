@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin, handleSupabaseError } from '@/lib/supabase'
+import { supabaseAdmin, handleSupabaseError, isSupabaseConfigured } from '@/lib/supabase'
 import { TeamMemberFormSchema } from '@/lib/schemas'
 
 export async function GET(request: NextRequest) {
   try {
+    // Check if Supabase is configured
+    if (!isSupabaseConfigured) {
+      console.warn('Supabase not configured, returning empty array')
+      return NextResponse.json([])
+    }
+
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status')
 
@@ -50,10 +56,47 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
+    // Parse JSON body with proper error handling
+    let body: any
+    try {
+      const text = await request.text()
+      if (!text || text.trim() === '') {
+        return NextResponse.json(
+          { error: 'Request body is required' },
+          { status: 400 }
+        )
+      }
+      body = JSON.parse(text)
+    } catch (parseError) {
+      console.error('JSON parsing error:', parseError)
+      return NextResponse.json(
+        { error: 'Invalid JSON in request body' },
+        { status: 400 }
+      )
+    }
     
     // Validate the request body
     const validatedData = TeamMemberFormSchema.parse(body)
+
+    // Check if Supabase is configured
+    if (!isSupabaseConfigured) {
+      console.warn('Supabase not configured, returning mock response')
+      // Return a mock response for development
+      const mockMember = {
+        id: Date.now(),
+        name: validatedData.name,
+        role_id: validatedData.role_id || null,
+        custom_role: validatedData.custom_role || null,
+        tier: validatedData.tier || null,
+        default_rate_per_day: validatedData.default_rate_per_day,
+        notes: validatedData.notes || null,
+        status: validatedData.status || 'ACTIVE',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        roles: validatedData.role_id ? { id: validatedData.role_id, name: 'Mock Role' } : null
+      }
+      return NextResponse.json(mockMember, { status: 201 })
+    }
 
     const { data: newMember, error } = await supabaseAdmin()
       .from('team_members')
@@ -105,7 +148,25 @@ export async function PUT(request: NextRequest) {
       )
     }
     
-    const body = await request.json()
+    // Parse JSON body with proper error handling
+    let body: any
+    try {
+      const text = await request.text()
+      if (!text || text.trim() === '') {
+        return NextResponse.json(
+          { error: 'Request body is required' },
+          { status: 400 }
+        )
+      }
+      body = JSON.parse(text)
+    } catch (parseError) {
+      console.error('JSON parsing error:', parseError)
+      return NextResponse.json(
+        { error: 'Invalid JSON in request body' },
+        { status: 400 }
+      )
+    }
+    
     const validatedData = TeamMemberFormSchema.partial().parse(body)
 
     const { data: updatedMember, error } = await supabaseAdmin()

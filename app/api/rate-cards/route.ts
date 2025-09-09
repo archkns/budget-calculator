@@ -1,11 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin, handleSupabaseError } from '@/lib/supabase';
+import { supabaseAdmin, handleSupabaseError, isSupabaseConfigured } from '@/lib/supabase';
 import { RateCardSchema } from '@/lib/schemas';
 
 export const runtime = 'nodejs';
 
 export async function GET() {
   try {
+    // Check if Supabase is configured
+    if (!isSupabaseConfigured) {
+      console.warn('Supabase not configured, returning empty array')
+      return NextResponse.json([])
+    }
+
     const { data: rateCards, error } = await supabaseAdmin()
       .from('rate_cards')
       .select(`
@@ -38,8 +44,43 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    // Parse JSON body with proper error handling
+    let body: any
+    try {
+      const text = await request.text()
+      if (!text || text.trim() === '') {
+        return NextResponse.json(
+          { error: 'Request body is required' },
+          { status: 400 }
+        )
+      }
+      body = JSON.parse(text)
+    } catch (parseError) {
+      console.error('JSON parsing error:', parseError)
+      return NextResponse.json(
+        { error: 'Invalid JSON in request body' },
+        { status: 400 }
+      )
+    }
+    
     const validatedData = RateCardSchema.omit({ id: true, created_at: true, updated_at: true }).parse(body);
+
+    // Check if Supabase is configured
+    if (!isSupabaseConfigured) {
+      console.warn('Supabase not configured, returning mock response')
+      // Return a mock response for development
+      const mockRateCard = {
+        id: Date.now(),
+        role_id: validatedData.role_id,
+        tier: validatedData.tier,
+        daily_rate: validatedData.daily_rate,
+        is_active: validatedData.is_active ?? true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        roles: { id: validatedData.role_id, name: 'Mock Role' }
+      }
+      return NextResponse.json(mockRateCard, { status: 201 })
+    }
 
     const { data: newRateCard, error } = await supabaseAdmin()
       .from('rate_cards')
@@ -88,7 +129,25 @@ export async function PUT(request: NextRequest) {
       );
     }
     
-    const body = await request.json();
+    // Parse JSON body with proper error handling
+    let body: any
+    try {
+      const text = await request.text()
+      if (!text || text.trim() === '') {
+        return NextResponse.json(
+          { error: 'Request body is required' },
+          { status: 400 }
+        )
+      }
+      body = JSON.parse(text)
+    } catch (parseError) {
+      console.error('JSON parsing error:', parseError)
+      return NextResponse.json(
+        { error: 'Invalid JSON in request body' },
+        { status: 400 }
+      )
+    }
+    
     const validatedData = RateCardSchema.partial().parse(body);
 
     const { data: updatedRateCard, error } = await supabaseAdmin()
