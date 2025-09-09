@@ -36,7 +36,12 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    return NextResponse.json(holidays || []);
+    const response = NextResponse.json(holidays || []);
+    
+    // Add cache headers for client-side caching
+    response.headers.set('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=7200');
+    
+    return response;
   } catch (error) {
     console.error('Error fetching holidays:', error);
     return NextResponse.json(

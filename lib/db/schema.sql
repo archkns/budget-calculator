@@ -107,6 +107,19 @@ CREATE TABLE IF NOT EXISTS holidays (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Performance indexes
+CREATE INDEX IF NOT EXISTS idx_projects_status ON projects(status);
+CREATE INDEX IF NOT EXISTS idx_projects_created_at ON projects(created_at);
+CREATE INDEX IF NOT EXISTS idx_project_assignments_project_id ON project_assignments(project_id);
+CREATE INDEX IF NOT EXISTS idx_project_assignments_team_member_id ON project_assignments(team_member_id);
+CREATE INDEX IF NOT EXISTS idx_team_members_status ON team_members(status);
+CREATE INDEX IF NOT EXISTS idx_team_members_role_id ON team_members(role_id);
+CREATE INDEX IF NOT EXISTS idx_public_holidays_date ON public_holidays(date);
+CREATE INDEX IF NOT EXISTS idx_public_holidays_project_id ON public_holidays(project_id);
+CREATE INDEX IF NOT EXISTS idx_holidays_date ON holidays(date);
+CREATE INDEX IF NOT EXISTS idx_holidays_project_id ON holidays(project_id);
+CREATE INDEX IF NOT EXISTS idx_rate_cards_role_tier ON rate_cards(role_id, tier);
+
 -- Insert some default public holidays
 INSERT INTO holidays (name, date, type, project_id) VALUES
 ('New Year''s Day', '2025-01-01', 'public', NULL),

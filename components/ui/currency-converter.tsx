@@ -57,11 +57,9 @@ export function CurrencyConverter({
   const [useManualRate, setUseManualRate] = useState(false)
   const [isConverting, setIsConverting] = useState(false)
   const [exchangeRates, setExchangeRates] = useState<Record<string, number>>({})
-  const [isLoadingRates, setIsLoadingRates] = useState(false)
 
   // Fetch exchange rates from our API
   const fetchExchangeRates = useCallback(async (baseCurrency: string = currentCurrency) => {
-    setIsLoadingRates(true)
     
     try {
       const response = await fetch(`/api/currency?base=${baseCurrency}`)
@@ -74,7 +72,7 @@ export function CurrencyConverter({
       
       if (data.success && data.currencies) {
         const rates: Record<string, number> = {}
-        data.currencies.forEach((currency: any) => {
+        data.currencies.forEach((currency: { currency: string; rate: number }) => {
           rates[currency.currency] = currency.rate
         })
         setExchangeRates(rates)
@@ -88,7 +86,7 @@ export function CurrencyConverter({
       setExchangeRates(fallbackRates)
       toast.warning('Using cached exchange rates (API unavailable)')
     } finally {
-      setIsLoadingRates(false)
+      // Loading completed
     }
   }, [currentCurrency])
 

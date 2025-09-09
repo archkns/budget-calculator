@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo, memo } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -168,7 +168,7 @@ export default function ProjectWorkspace() {
 
   const projectDates = calculateProjectDates()
 
-  const calculateSummary = (): ProjectSummary => {
+  const summary = useMemo((): ProjectSummary => {
     const subtotal = assignments.reduce((sum, assignment) => sum + (assignment.dailyRate * assignment.daysAllocated), 0)
     const additionalCost = 98700 // Fixed additional cost
     const cost = subtotal + additionalCost
@@ -178,17 +178,15 @@ export default function ProjectWorkspace() {
     const margin = proposedPrice > 0 ? ((proposedPrice - cost) / proposedPrice) * 100 : 0
 
     return { subtotal, additionalCost, cost, proposedPrice, roi, margin }
-  }
+  }, [assignments, project.proposedPrice])
 
-  const summary = calculateSummary()
-
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = useCallback((amount: number) => {
     return `${project.currency.symbol}${amount.toLocaleString()}`
-  }
+  }, [project.currency.symbol])
 
-  const formatPercentage = (percentage: number) => {
+  const formatPercentage = useCallback((percentage: number) => {
     return `${percentage.toFixed(2)}%`
-  }
+  }, [])
 
   const handleAddTeamMember = (teamMember: TeamMember) => {
     const newAssignment: ProjectAssignment = {
@@ -238,8 +236,8 @@ export default function ProjectWorkspace() {
     setAssignments(prev => prev.filter(assignment => assignment.id !== id))
   }
 
-  // Generate Gantt tasks
-  const generateGanttTasks = (): GanttTask[] => {
+  // Generate Gantt tasks (memoized)
+  const ganttTasks = useMemo((): GanttTask[] => {
     const tasks: GanttTask[] = []
     
     assignments.forEach(assignment => {
@@ -273,7 +271,7 @@ export default function ProjectWorkspace() {
     })
     
     return tasks
-  }
+  }, [assignments, holidays])
 
   const handleTaskUpdate = (taskId: number, startDate: Date, endDate: Date) => {
     const assigneeId = Math.ceil(taskId / 2)
@@ -737,7 +735,7 @@ export default function ProjectWorkspace() {
 
           <TabsContent value="gantt" className="space-y-6">
             <InteractiveGantt
-              tasks={generateGanttTasks()}
+              tasks={ganttTasks}
               holidays={holidays}
               projectStart={project.startDate}
               projectEnd={projectDates.projectEndDate}

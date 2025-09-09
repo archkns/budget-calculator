@@ -33,7 +33,12 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    return NextResponse.json(teamMembers || []);
+    const response = NextResponse.json(teamMembers || []);
+    
+    // Add cache headers for client-side caching
+    response.headers.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
+    
+    return response;
   } catch (error) {
     console.error('Error fetching team members:', error);
     return NextResponse.json(

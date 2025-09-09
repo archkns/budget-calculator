@@ -17,7 +17,12 @@ export async function GET() {
       )
     }
 
-    return NextResponse.json(projects || [])
+    const response = NextResponse.json(projects || [])
+    
+    // Add cache headers for client-side caching
+    response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300')
+    
+    return response
   } catch (error) {
     console.error('Error fetching projects:', error)
     return NextResponse.json(

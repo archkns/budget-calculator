@@ -38,11 +38,32 @@ const FALLBACK_RATES: Record<string, number> = {
   'INR': 0.43,
 };
 
+// In-memory cache for exchange rates (5 minute TTL)
+let rateCache: {
+  data: Record<string, number>;
+  timestamp: number;
+  ttl: number;
+} | null = null;
+
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 // Function to get exchange rates (using secure fallback rates only)
 async function getExchangeRates(baseCurrency: string = 'USD'): Promise<Record<string, number>> {
+  // Check cache first
+  if (rateCache && Date.now() - rateCache.timestamp < rateCache.ttl) {
+    return rateCache.data;
+  }
+  
   // For security reasons, we only use fallback rates
   // This prevents any API keys or external service dependencies
   console.log(`Using secure fallback exchange rates for base currency: ${baseCurrency}`);
+  
+  // Cache the rates
+  rateCache = {
+    data: FALLBACK_RATES,
+    timestamp: Date.now(),
+    ttl: CACHE_TTL
+  };
   
   // Return fallback rates (these should be updated periodically by the development team)
   return FALLBACK_RATES;
@@ -90,13 +111,18 @@ export async function GET(request: NextRequest) {
       rate: rates[config.currency] || 1
     }));
     
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       currencies: currenciesWithRates,
       timestamp: Date.now(),
       source: 'Open Exchange Rates API',
       base: base
     });
+    
+    // Add cache headers for client-side caching
+    response.headers.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
+    
+    return response;
   } catch (error) {
     console.error('Error fetching currency data:', error);
     return NextResponse.json(

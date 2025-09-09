@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useRef, useEffect, useCallback } from 'react'
+import React, { useState, useRef, useEffect, useCallback, useMemo, memo } from 'react'
 import { format, addDays, differenceInDays, startOfWeek, endOfWeek, eachDayOfInterval, isWeekend, addWeeks } from 'date-fns'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -32,7 +32,7 @@ interface InteractiveGanttProps {
   onTaskResize: (taskId: number, newDuration: number) => void
 }
 
-export function InteractiveGantt({ 
+export const InteractiveGantt = memo(function InteractiveGantt({ 
   tasks, 
   holidays, 
   projectStart, 
@@ -45,10 +45,20 @@ export function InteractiveGantt({
   const [dragOffset, setDragOffset] = useState(0)
   const ganttRef = useRef<HTMLDivElement>(null)
 
-  // Extend timeline to show at least 4 weeks beyond project end
-  const timelineStart = startOfWeek(projectStart)
-  const timelineEnd = addWeeks(endOfWeek(projectEnd), 4) // Add 4 more weeks
-  const timelineDays = eachDayOfInterval({ start: timelineStart, end: timelineEnd })
+  // Memoize timeline calculations
+  const timelineData = useMemo(() => {
+    const timelineStart = startOfWeek(projectStart)
+    const timelineEnd = addWeeks(endOfWeek(projectEnd), 4) // Add 4 more weeks
+    const timelineDays = eachDayOfInterval({ start: timelineStart, end: timelineEnd })
+    
+    return {
+      timelineStart,
+      timelineEnd,
+      timelineDays
+    }
+  }, [projectStart, projectEnd])
+  
+  const { timelineStart, timelineEnd, timelineDays } = timelineData
   
   const dayWidth = 40
   const taskHeight = 32
@@ -66,11 +76,12 @@ export function InteractiveGantt({
     return Math.max(duration * dayWidth, dayWidth)
   }
 
-  const isHoliday = (date: Date) => {
+  // Memoize holiday check
+  const isHoliday = useCallback((date: Date) => {
     return holidays.some(h => 
       format(h.date, 'yyyy-MM-dd') === format(date, 'yyyy-MM-dd')
     )
-  }
+  }, [holidays])
 
   const handleMouseDown = (e: React.MouseEvent, taskId: number, action: 'drag' | 'resize') => {
     e.preventDefault()
@@ -165,11 +176,22 @@ export function InteractiveGantt({
     }
   }, [handleGlobalMouseMove])
 
-  // Fixed height calculation - no vertical scrolling
-  const emptyStateHeight = 150
-  const tasksAreaHeight = tasks.length > 0 ? tasks.length * (taskHeight + taskSpacing) + 40 : emptyStateHeight
-  const totalFixedHeight = headerHeight + tasksAreaHeight
-  const chartWidth = timelineDays.length * dayWidth + labelWidth
+  // Memoize height calculations
+  const heightData = useMemo(() => {
+    const emptyStateHeight = 150
+    const tasksAreaHeight = tasks.length > 0 ? tasks.length * (taskHeight + taskSpacing) + 40 : emptyStateHeight
+    const totalFixedHeight = headerHeight + tasksAreaHeight
+    const chartWidth = timelineDays.length * dayWidth + labelWidth
+    
+    return {
+      emptyStateHeight,
+      tasksAreaHeight,
+      totalFixedHeight,
+      chartWidth
+    }
+  }, [tasks.length, timelineDays.length, taskHeight, taskSpacing, headerHeight, dayWidth, labelWidth])
+  
+  const { emptyStateHeight, tasksAreaHeight, totalFixedHeight, chartWidth } = heightData
 
   return (
     <div className="w-full">
@@ -412,4 +434,4 @@ export function InteractiveGantt({
       </div>
     </div>
   )
-}
+})

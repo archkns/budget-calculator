@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo, memo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
@@ -17,13 +17,6 @@ interface Currency {
   name: string
 }
 
-interface ExchangeRateResponse {
-  success: boolean
-  timestamp: number
-  base: string
-  date: string
-  rates: Record<string, number>
-}
 
 interface RealtimeCurrencyConverterProps {
   currentCurrency: string
@@ -57,7 +50,7 @@ const FALLBACK_RATES: Record<string, Record<string, number>> = {
   EUR: { THB: 39.06, USD: 1.087, GBP: 0.853, JPY: 163.4, SGD: 1.462, AUD: 1.635, CAD: 1.474, CHF: 0.970, CNY: 7.78, INR: 91.1, KRW: 1454, EUR: 1 }
 }
 
-export function RealtimeCurrencyConverter({
+export const RealtimeCurrencyConverter = memo(function RealtimeCurrencyConverter({
   currentCurrency,
   currentSymbol,
   proposedPrice,
@@ -95,7 +88,7 @@ export function RealtimeCurrencyConverter({
       if (data.success && data.currencies) {
         // Convert currencies array to rates object
         const rates: Record<string, number> = {}
-        data.currencies.forEach((currency: any) => {
+        data.currencies.forEach((currency: { currency: string; rate: number }) => {
           rates[currency.currency] = currency.rate
         })
         
@@ -138,8 +131,8 @@ export function RealtimeCurrencyConverter({
     return () => clearInterval(interval)
   }, [currentCurrency, rateSource, fetchExchangeRates])
 
-  // Get current exchange rate
-  const getCurrentRate = (): number => {
+  // Get current exchange rate (memoized)
+  const getCurrentRate = useCallback((): number => {
     if (useManualRate && manualRate) {
       setRateSource('manual')
       return parseFloat(manualRate)
@@ -147,11 +140,16 @@ export function RealtimeCurrencyConverter({
     
     const rate = exchangeRates[selectedCurrency] || 1
     return rate
-  }
+  }, [useManualRate, manualRate, exchangeRates, selectedCurrency])
 
-  // Calculate converted amount
-  const convertedAmount = Math.round(proposedPrice * getCurrentRate())
-  const selectedCurrencyData = CURRENCIES.find(c => c.code === selectedCurrency)
+  // Calculate converted amount (memoized)
+  const convertedAmount = useMemo(() => {
+    return Math.round(proposedPrice * getCurrentRate())
+  }, [proposedPrice, getCurrentRate])
+  
+  const selectedCurrencyData = useMemo(() => {
+    return CURRENCIES.find(c => c.code === selectedCurrency)
+  }, [selectedCurrency])
 
   // Handle currency selection change
   const handleCurrencySelection = (newCurrency: string) => {
@@ -218,8 +216,10 @@ export function RealtimeCurrencyConverter({
     fetchExchangeRates(currentCurrency)
   }
 
-  const currentRate = getCurrentRate()
-  const rateDirection = currentRate > 1 ? 'up' : currentRate < 1 ? 'down' : 'neutral'
+  const currentRate = useMemo(() => getCurrentRate(), [getCurrentRate])
+  const rateDirection = useMemo(() => {
+    return currentRate > 1 ? 'up' : currentRate < 1 ? 'down' : 'neutral'
+  }, [currentRate])
 
   return (
     <Card>
@@ -424,4 +424,4 @@ export function RealtimeCurrencyConverter({
       </CardContent>
     </Card>
   )
-}
+})
