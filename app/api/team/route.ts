@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     // Parse JSON body with proper error handling
-    let body: any
+    let body: unknown
     try {
       const text = await request.text()
       if (!text || text.trim() === '') {
@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Validate the request body
-    const validatedData = TeamMemberFormSchema.parse(body)
+    const validatedData = TeamMemberFormSchema.parse(body as Record<string, unknown>)
 
     // Check if Supabase is configured
     if (!isSupabaseConfigured) {
@@ -149,7 +149,7 @@ export async function PUT(request: NextRequest) {
     }
     
     // Parse JSON body with proper error handling
-    let body: any
+    let body: unknown
     try {
       const text = await request.text()
       if (!text || text.trim() === '') {
@@ -167,7 +167,7 @@ export async function PUT(request: NextRequest) {
       )
     }
     
-    const validatedData = TeamMemberFormSchema.partial().parse(body)
+    const validatedData = TeamMemberFormSchema.partial().parse(body as Record<string, unknown>)
 
     const { data: updatedMember, error } = await supabaseAdmin()
       .from('team_members')

@@ -45,7 +45,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     // Parse JSON body with proper error handling
-    let body: any
+    let body: unknown
     try {
       const text = await request.text()
       if (!text || text.trim() === '') {
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    const validatedData = RateCardSchema.omit({ id: true, created_at: true, updated_at: true }).parse(body);
+    const validatedData = RateCardSchema.omit({ id: true, created_at: true, updated_at: true }).parse(body as Record<string, unknown>);
 
     // Check if Supabase is configured
     if (!isSupabaseConfigured) {
@@ -130,7 +130,7 @@ export async function PUT(request: NextRequest) {
     }
     
     // Parse JSON body with proper error handling
-    let body: any
+    let body: unknown
     try {
       const text = await request.text()
       if (!text || text.trim() === '') {
@@ -148,7 +148,7 @@ export async function PUT(request: NextRequest) {
       )
     }
     
-    const validatedData = RateCardSchema.partial().parse(body);
+    const validatedData = RateCardSchema.partial().parse(body as Record<string, unknown>);
 
     const { data: updatedRateCard, error } = await supabaseAdmin()
       .from('rate_cards')

@@ -41,7 +41,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     // Parse JSON body with proper error handling
-    let body: any
+    let body: unknown
     try {
       const text = await request.text()
       if (!text || text.trim() === '') {
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Handle both old format (with project wrapper) and new format (direct data)
-    const projectData: CreateProjectData = body.project || body
+    const projectData: CreateProjectData = (body as { project?: CreateProjectData }).project || (body as CreateProjectData)
     
     // Validate required fields
     if (!projectData || !projectData.name) {

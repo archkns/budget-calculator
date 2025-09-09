@@ -58,7 +58,7 @@ export const InteractiveGantt = memo(function InteractiveGantt({
     }
   }, [projectStart, projectEnd])
   
-  const { timelineStart, timelineEnd, timelineDays } = timelineData
+  const { timelineStart, timelineDays } = timelineData
   
   const dayWidth = 40
   const taskHeight = 32
@@ -191,7 +191,7 @@ export const InteractiveGantt = memo(function InteractiveGantt({
     }
   }, [tasks.length, timelineDays.length, taskHeight, taskSpacing, headerHeight, dayWidth, labelWidth])
   
-  const { emptyStateHeight, tasksAreaHeight, totalFixedHeight, chartWidth } = heightData
+  const { tasksAreaHeight, totalFixedHeight, chartWidth } = heightData
 
   return (
     <div className="w-full">
