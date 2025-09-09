@@ -20,6 +20,7 @@ interface CurrencyConverterProps {
   currentCurrency: string
   currentSymbol: string
   currentAmount: number
+  // eslint-disable-next-line no-unused-vars
   onCurrencyChange: (currency: string, symbol: string, rate: number, convertedAmount: number) => void
 }
 

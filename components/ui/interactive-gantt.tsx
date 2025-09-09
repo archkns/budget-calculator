@@ -28,7 +28,9 @@ interface InteractiveGanttProps {
   holidays: Holiday[]
   projectStart: Date
   projectEnd: Date
+  // eslint-disable-next-line no-unused-vars
   onTaskUpdate: (taskId: number, startDate: Date, endDate: Date) => void
+  // eslint-disable-next-line no-unused-vars
   onTaskResize: (taskId: number, newDuration: number) => void
 }
 

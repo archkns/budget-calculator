@@ -1,35 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server'
-
-interface ProjectData {
-  id: number
-  name: string
-  client: string
-  currency_code: string
-  currency_symbol: string
-  hours_per_day: number
-  tax_enabled: boolean
-  tax_percentage: number
-  proposed_price: number | null
-  working_week: string
-  execution_days: number
-  buffer_days: number
-  guarantee_days: number
-  start_date: string | null
-  end_date: string | null
-  calendar_mode: boolean
-  assignments: unknown[]
-  holidays: unknown[]
-  createdAt: string
-  updatedAt: string
-  status: string
-}
-
-// Mock projects data - in a real app, this would come from a database
-const mockProjects: ProjectData[] = []
+import { supabaseAdmin } from '@/lib/supabase'
+import { CreateProjectData } from '@/lib/types/database'
 
 export async function GET() {
   try {
-    return NextResponse.json(mockProjects)
+    // Check if Supabase is configured
+    if (!supabaseAdmin) {
+      console.warn('Supabase not configured, returning empty array')
+      return NextResponse.json([])
+    }
+
+    const { data: projects, error } = await supabaseAdmin
+      .from('projects')
+      .select('*')
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.error('Error fetching projects:', error)
+      return NextResponse.json(
+        { error: 'Failed to fetch projects' },
+        { status: 500 }
+      )
+    }
+
+    return NextResponse.json(projects || [])
   } catch (error) {
     console.error('Error fetching projects:', error)
     return NextResponse.json(
@@ -44,7 +38,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     
     // Handle both old format (with project wrapper) and new format (direct data)
-    const projectData = body.project || body
+    const projectData: CreateProjectData = body.project || body
     
     // Validate required fields
     if (!projectData || !projectData.name) {
@@ -54,10 +48,32 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    const newProject = {
-      id: mockProjects.length + 1,
+    // Check if Supabase is configured
+    if (!supabaseAdmin) {
+      console.warn('Supabase not configured, returning mock response')
+      // Return a mock response for development
+      const mockProject = {
+        id: Date.now(),
+        name: projectData.name,
+        client: projectData.client || null,
+        currency_code: projectData.currency_code || 'THB',
+        currency_symbol: projectData.currency_symbol || '฿',
+        hours_per_day: projectData.hours_per_day || 7,
+        tax_enabled: projectData.tax_enabled || false,
+        tax_percentage: projectData.tax_percentage || 7,
+        proposed_price: projectData.proposed_price || null,
+        working_week: projectData.working_week || 'MON_TO_FRI',
+        status: projectData.status || 'ACTIVE',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
+      return NextResponse.json(mockProject, { status: 201 })
+    }
+    
+    // Prepare data for database insertion
+    const insertData = {
       name: projectData.name,
-      client: projectData.client || '',
+      client: projectData.client || null,
       currency_code: projectData.currency_code || 'THB',
       currency_symbol: projectData.currency_symbol || '฿',
       hours_per_day: projectData.hours_per_day || 7,
@@ -65,22 +81,23 @@ export async function POST(request: NextRequest) {
       tax_percentage: projectData.tax_percentage || 7,
       proposed_price: projectData.proposed_price || null,
       working_week: projectData.working_week || 'MON_TO_FRI',
-      // Default timeline values that will be configured in the workspace
-      execution_days: 0,
-      buffer_days: 0,
-      guarantee_days: 8,
-      start_date: null,
-      end_date: null,
-      calendar_mode: false,
-      // Additional fields
-      assignments: body.assignments || [],
-      holidays: body.holidays || [],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
       status: projectData.status || 'ACTIVE'
     }
     
-    mockProjects.push(newProject)
+    // Insert project into database
+    const { data: newProject, error } = await supabaseAdmin
+      .from('projects')
+      .insert(insertData)
+      .select()
+      .single()
+    
+    if (error) {
+      console.error('Error creating project:', error)
+      return NextResponse.json(
+        { error: 'Failed to create project' },
+        { status: 500 }
+      )
+    }
     
     return NextResponse.json(newProject, { status: 201 })
   } catch (error) {

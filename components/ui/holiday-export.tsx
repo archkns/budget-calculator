@@ -25,6 +25,7 @@ interface HolidayExportProps {
 // Extend jsPDF type to include autoTable
 declare module 'jspdf' {
   interface jsPDF {
+    // eslint-disable-next-line no-unused-vars
     autoTable: (options: {
       head: string[][]
       body: string[][]

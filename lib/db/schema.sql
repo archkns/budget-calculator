@@ -1,3 +1,26 @@
+-- Projects table
+CREATE TABLE IF NOT EXISTS projects (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  client VARCHAR(255),
+  currency_code VARCHAR(10) DEFAULT 'THB',
+  currency_symbol VARCHAR(10) DEFAULT '฿',
+  hours_per_day INTEGER DEFAULT 7,
+  tax_enabled BOOLEAN DEFAULT false,
+  tax_percentage DECIMAL(5,2) DEFAULT 7.00,
+  proposed_price DECIMAL(15,2),
+  working_week VARCHAR(20) DEFAULT 'MON_TO_FRI',
+  execution_days INTEGER DEFAULT 0,
+  buffer_days INTEGER DEFAULT 0,
+  guarantee_days INTEGER DEFAULT 8,
+  start_date DATE,
+  end_date DATE,
+  calendar_mode BOOLEAN DEFAULT false,
+  status VARCHAR(20) DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'DRAFT', 'COMPLETED', 'CANCELLED')),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Holidays table
 CREATE TABLE IF NOT EXISTS holidays (
   id SERIAL PRIMARY KEY,

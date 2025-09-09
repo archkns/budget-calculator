@@ -1,29 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server'
-
-interface DraftData {
-  id: number
-  name: string
-  client: string
-  currency_code: string
-  currency_symbol: string
-  hours_per_day: number
-  tax_enabled: boolean
-  tax_percentage: number
-  proposed_price: number | null
-  working_week: string
-  assignments: unknown[]
-  holidays: unknown[]
-  createdAt: string
-  updatedAt: string
-  status: string
-}
-
-// Mock drafts data - in a real app, this would come from a database
-const mockDrafts: DraftData[] = []
+import { supabaseAdmin } from '@/lib/supabase'
 
 export async function GET() {
   try {
-    return NextResponse.json(mockDrafts)
+    // Check if Supabase is configured
+    if (!supabaseAdmin) {
+      console.warn('Supabase not configured, returning empty array')
+      return NextResponse.json([])
+    }
+
+    const { data: drafts, error } = await supabaseAdmin
+      .from('projects')
+      .select('*')
+      .eq('status', 'DRAFT')
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.error('Error fetching drafts:', error)
+      return NextResponse.json(
+        { error: 'Failed to fetch drafts' },
+        { status: 500 }
+      )
+    }
+
+    return NextResponse.json(drafts || [])
   } catch (error) {
     console.error('Error fetching drafts:', error)
     return NextResponse.json(
@@ -36,7 +36,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { project, assignments, holidays } = body
+    const { project } = body
     
     // Validate required fields
     if (!project || !project.name) {
@@ -46,28 +46,58 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    // Check if draft already exists for this project
-    const existingDraftIndex = mockDrafts.findIndex(d => d.id === project.id)
+    // Check if Supabase is configured
+    if (!supabaseAdmin) {
+      console.warn('Supabase not configured, returning mock response')
+      // Return a mock response for development
+      const mockDraft = {
+        id: Date.now(),
+        name: project.name,
+        client: project.client || null,
+        currency_code: project.currency_code || 'THB',
+        currency_symbol: project.currency_symbol || '฿',
+        hours_per_day: project.hours_per_day || 7,
+        tax_enabled: project.tax_enabled || false,
+        tax_percentage: project.tax_percentage || 7,
+        proposed_price: project.proposed_price || null,
+        working_week: project.working_week || 'MON_TO_FRI',
+        status: 'DRAFT',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
+      return NextResponse.json(mockDraft, { status: 201 })
+    }
     
-    const draftData = {
-      id: project.id,
-      ...project,
-      assignments: assignments || [],
-      holidays: holidays || [],
-      createdAt: existingDraftIndex === -1 ? new Date().toISOString() : mockDrafts[existingDraftIndex].createdAt,
-      updatedAt: new Date().toISOString(),
+    // Prepare data for database insertion
+    const insertData = {
+      name: project.name,
+      client: project.client || null,
+      currency_code: project.currency_code || 'THB',
+      currency_symbol: project.currency_symbol || '฿',
+      hours_per_day: project.hours_per_day || 7,
+      tax_enabled: project.tax_enabled || false,
+      tax_percentage: project.tax_percentage || 7,
+      proposed_price: project.proposed_price || null,
+      working_week: project.working_week || 'MON_TO_FRI',
       status: 'DRAFT'
     }
     
-    if (existingDraftIndex !== -1) {
-      // Update existing draft
-      mockDrafts[existingDraftIndex] = draftData
-    } else {
-      // Create new draft
-      mockDrafts.push(draftData)
+    // Insert draft into database
+    const { data: newDraft, error } = await supabaseAdmin
+      .from('projects')
+      .insert(insertData)
+      .select()
+      .single()
+    
+    if (error) {
+      console.error('Error saving draft:', error)
+      return NextResponse.json(
+        { error: 'Failed to save draft' },
+        { status: 500 }
+      )
     }
     
-    return NextResponse.json(draftData, { status: 201 })
+    return NextResponse.json(newDraft, { status: 201 })
   } catch (error) {
     console.error('Error saving draft:', error)
     return NextResponse.json(

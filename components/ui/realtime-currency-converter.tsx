@@ -30,8 +30,11 @@ interface RealtimeCurrencyConverterProps {
   currentSymbol: string
   proposedPrice: number
   hoursPerDay: number
+  // eslint-disable-next-line no-unused-vars
   onCurrencyChange: (currency: string, symbol: string, rate: number) => void
+  // eslint-disable-next-line no-unused-vars
   onProposedPriceChange: (price: number) => void
+  // eslint-disable-next-line no-unused-vars
   onHoursPerDayChange: (hours: number) => void
 }
 
