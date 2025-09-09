@@ -12,17 +12,29 @@ export async function GET() {
       return NextResponse.json([])
     }
 
-    const { data: rateCards, error } = await supabaseAdmin()
-      .from('rate_cards')
-      .select(`
-        *,
-        roles:role_id (
-          id,
-          name
-        )
-      `)
-      .order('role_id', { ascending: true })
-      .order('tier', { ascending: true });
+    let rateCards, error;
+    try {
+      const result = await supabaseAdmin()
+        .from('rate_cards')
+        .select(`
+          *,
+          roles:role_id (
+            id,
+            name
+          )
+        `)
+        .order('role_id', { ascending: true })
+        .order('tier', { ascending: true });
+      
+      rateCards = result.data;
+      error = result.error;
+    } catch (supabaseError) {
+      console.error('Supabase client initialization error:', supabaseError)
+      return NextResponse.json(
+        { error: 'Database connection failed' },
+        { status: 500 }
+      )
+    }
 
     if (error) {
       const errorResponse = handleSupabaseError(error, 'fetch rate cards');
@@ -82,22 +94,34 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(mockRateCard, { status: 201 })
     }
 
-    const { data: newRateCard, error } = await supabaseAdmin()
-      .from('rate_cards')
-      .insert({
-        role_id: validatedData.role_id,
-        tier: validatedData.tier,
-        daily_rate: validatedData.daily_rate,
-        is_active: validatedData.is_active ?? true
-      })
-      .select(`
-        *,
-        roles:role_id (
-          id,
-          name
-        )
-      `)
-      .single();
+    let newRateCard, error;
+    try {
+      const result = await supabaseAdmin()
+        .from('rate_cards')
+        .insert({
+          role_id: validatedData.role_id,
+          tier: validatedData.tier,
+          daily_rate: validatedData.daily_rate,
+          is_active: validatedData.is_active ?? true
+        })
+        .select(`
+          *,
+          roles:role_id (
+            id,
+            name
+          )
+        `)
+        .single();
+      
+      newRateCard = result.data;
+      error = result.error;
+    } catch (supabaseError) {
+      console.error('Supabase client initialization error:', supabaseError)
+      return NextResponse.json(
+        { error: 'Database connection failed' },
+        { status: 500 }
+      )
+    }
 
     if (error) {
       const errorResponse = handleSupabaseError(error, 'create rate card');
@@ -150,18 +174,30 @@ export async function PUT(request: NextRequest) {
     
     const validatedData = RateCardSchema.partial().parse(body as Record<string, unknown>);
 
-    const { data: updatedRateCard, error } = await supabaseAdmin()
-      .from('rate_cards')
-      .update(validatedData)
-      .eq('id', id)
-      .select(`
-        *,
-        roles:role_id (
-          id,
-          name
-        )
-      `)
-      .single();
+    let updatedRateCard, error;
+    try {
+      const result = await supabaseAdmin()
+        .from('rate_cards')
+        .update(validatedData)
+        .eq('id', id)
+        .select(`
+          *,
+          roles:role_id (
+            id,
+            name
+          )
+        `)
+        .single();
+      
+      updatedRateCard = result.data;
+      error = result.error;
+    } catch (supabaseError) {
+      console.error('Supabase client initialization error:', supabaseError)
+      return NextResponse.json(
+        { error: 'Database connection failed' },
+        { status: 500 }
+      )
+    }
 
     if (error) {
       const errorResponse = handleSupabaseError(error, 'update rate card');
