@@ -54,7 +54,7 @@ export default function NewProjectPage() {
     working_week: 'MON_TO_FRI'
   })
 
-  const handleInputChange = (field: keyof ProjectFormData, value: any) => {
+  const handleInputChange = (field: keyof ProjectFormData, value: string | number | boolean | undefined) => {
     setFormData(prev => ({ ...prev, [field]: value }))
   }
 

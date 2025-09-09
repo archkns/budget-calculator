@@ -1,9 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-// Mock projects data - in a real app, this would come from a database
-const mockProjects = []
+interface ProjectData {
+  id: number
+  name: string
+  client: string
+  currency_code: string
+  currency_symbol: string
+  hours_per_day: number
+  tax_enabled: boolean
+  tax_percentage: number
+  proposed_price: number | null
+  working_week: string
+  execution_days: number
+  buffer_days: number
+  guarantee_days: number
+  start_date: string | null
+  end_date: string | null
+  calendar_mode: boolean
+  assignments: unknown[]
+  holidays: unknown[]
+  createdAt: string
+  updatedAt: string
+  status: string
+}
 
-export async function GET(request: NextRequest) {
+// Mock projects data - in a real app, this would come from a database
+const mockProjects: ProjectData[] = []
+
+export async function GET() {
   try {
     return NextResponse.json(mockProjects)
   } catch (error) {

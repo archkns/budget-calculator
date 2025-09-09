@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 export const runtime = 'nodejs';
 
 // Mock currency conversion rates (in a real app, this would come from a live API)
-let currencyRates = [
+const currencyRates = [
   { id: 1, currency: 'USD', symbol: '$', rate: 35.50, name: 'US Dollar' },
   { id: 2, currency: 'EUR', symbol: '€', rate: 38.20, name: 'Euro' },
   { id: 3, currency: 'GBP', symbol: '£', rate: 44.80, name: 'British Pound' },
@@ -15,7 +15,7 @@ let currencyRates = [
   { id: 9, currency: 'AUD', symbol: 'A$', rate: 23.80, name: 'Australian Dollar' },
   { id: 10, currency: 'CAD', symbol: 'C$', rate: 26.10, name: 'Canadian Dollar' },
   { id: 11, currency: 'THB', symbol: '฿', rate: 1.00, name: 'Thai Baht' }, // Base currency
-];
+] as Array<{ id: number; currency: string; symbol: string; rate: number; name: string }>;
 
 export async function GET(request: NextRequest) {
   try {

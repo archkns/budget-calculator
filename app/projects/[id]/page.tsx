@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -13,7 +13,7 @@ import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { InteractiveGantt } from '@/components/ui/interactive-gantt'
-import { Calculator, Plus, Edit, Trash2, FileText, TrendingUp, TrendingDown, CalendarIcon } from 'lucide-react'
+import { Calculator, Plus, Trash2, FileText, TrendingUp, TrendingDown, CalendarIcon } from 'lucide-react'
 import { format, addDays, isWeekend, differenceInDays } from 'date-fns'
 import { toast } from 'sonner'
 import { RealtimeCurrencyConverter } from "@/components/ui/realtime-currency-converter"
@@ -93,15 +93,9 @@ export default function ProjectWorkspace() {
   const [assignments, setAssignments] = useState<ProjectAssignment[]>([])
   const [teamLibrary, setTeamLibrary] = useState<TeamMember[]>([])
   const [holidays, setHolidays] = useState<Holiday[]>([])
-  const [loading, setLoading] = useState(false)
+  const [, setLoading] = useState(false)
   const [showAddTeamMember, setShowAddTeamMember] = useState(false)
   const [selectedTeamMember, setSelectedTeamMember] = useState<TeamMember | null>(null)
-
-  // Fetch team library and holidays on load
-  useEffect(() => {
-    fetchTeamLibrary()
-    fetchHolidays()
-  }, [])
 
   const fetchTeamLibrary = async () => {
     try {
@@ -116,13 +110,13 @@ export default function ProjectWorkspace() {
     }
   }
 
-  const fetchHolidays = async () => {
+  const fetchHolidays = useCallback(async () => {
     try {
       setLoading(true)
       const response = await fetch(`/api/holidays?project_id=${project.id}`)
       if (response.ok) {
         const data = await response.json()
-        setHolidays(data.map((h: any) => ({
+        setHolidays(data.map((h: { id: number; name: string; date: string; type: string; project_id?: number }) => ({
           ...h,
           date: new Date(h.date)
         })))
@@ -133,7 +127,13 @@ export default function ProjectWorkspace() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [project.id])
+
+  // Fetch team library and holidays on load
+  useEffect(() => {
+    fetchTeamLibrary()
+    fetchHolidays()
+  }, [fetchHolidays])
 
   const calculateWorkdays = (startDate: Date, days: number, holidays: Holiday[]): Date => {
     let currentDate = new Date(startDate)

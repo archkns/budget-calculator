@@ -25,7 +25,15 @@ interface HolidayExportProps {
 // Extend jsPDF type to include autoTable
 declare module 'jspdf' {
   interface jsPDF {
-    autoTable: (options: any) => jsPDF
+    autoTable: (options: {
+      head: string[][]
+      body: string[][]
+      startY: number
+      styles: Record<string, unknown>
+      headStyles: Record<string, unknown>
+      alternateRowStyles: Record<string, unknown>
+      columnStyles: Record<string, unknown>
+    }) => jsPDF
   }
 }
 

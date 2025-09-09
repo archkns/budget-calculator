@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { format, addDays, differenceInDays, startOfWeek, endOfWeek, eachDayOfInterval, isWeekend, addWeeks } from 'date-fns'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -56,10 +56,10 @@ export function InteractiveGantt({
   const labelWidth = 200
   const headerHeight = 60
 
-  const getDatePosition = (date: Date) => {
+  const getDatePosition = useCallback((date: Date) => {
     const dayIndex = differenceInDays(date, timelineStart)
     return dayIndex * dayWidth
-  }
+  }, [timelineStart, dayWidth])
 
   const getTaskWidth = (startDate: Date, endDate: Date) => {
     const duration = differenceInDays(endDate, startDate) + 1
@@ -87,7 +87,7 @@ export function InteractiveGantt({
     }
   }
 
-  const handleMouseMove = (e: React.MouseEvent) => {
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (!ganttRef.current) return
     const rect = ganttRef.current.getBoundingClientRect()
     const x = e.clientX - rect.left
@@ -115,7 +115,37 @@ export function InteractiveGantt({
       
       onTaskResize(resizingTask, newDuration)
     }
-  }
+  }, [draggedTask, resizingTask, dragOffset, tasks, onTaskUpdate, onTaskResize, timelineStart, dayWidth, labelWidth, getDatePosition])
+
+  const handleGlobalMouseMove = useCallback((e: MouseEvent) => {
+    if (!ganttRef.current) return
+    const rect = ganttRef.current.getBoundingClientRect()
+    const x = e.clientX - rect.left
+
+    if (draggedTask !== null) {
+      const task = tasks.find(t => t.id === draggedTask)
+      if (!task) return
+
+      const newStartX = x - dragOffset - labelWidth
+      const newStartDay = Math.round(newStartX / dayWidth)
+      const newStartDate = addDays(timelineStart, Math.max(0, newStartDay))
+      const duration = differenceInDays(task.endDate, task.startDate)
+      const newEndDate = addDays(newStartDate, duration)
+
+      onTaskUpdate(draggedTask, newStartDate, newEndDate)
+    }
+
+    if (resizingTask !== null) {
+      const task = tasks.find(t => t.id === resizingTask)
+      if (!task) return
+
+      const taskStartX = getDatePosition(task.startDate) + labelWidth
+      const newWidth = Math.max(dayWidth, x - taskStartX)
+      const newDuration = Math.max(1, Math.round(newWidth / dayWidth))
+      
+      onTaskResize(resizingTask, newDuration)
+    }
+  }, [draggedTask, resizingTask, dragOffset, tasks, onTaskUpdate, onTaskResize, timelineStart, dayWidth, labelWidth, getDatePosition])
 
   const handleMouseUp = () => {
     setDraggedTask(null)
@@ -125,11 +155,6 @@ export function InteractiveGantt({
 
   useEffect(() => {
     const handleGlobalMouseUp = () => handleMouseUp()
-    const handleGlobalMouseMove = (e: MouseEvent) => {
-      if (draggedTask !== null || resizingTask !== null) {
-        handleMouseMove(e as any)
-      }
-    }
     
     document.addEventListener('mouseup', handleGlobalMouseUp)
     document.addEventListener('mousemove', handleGlobalMouseMove)
@@ -138,7 +163,7 @@ export function InteractiveGantt({
       document.removeEventListener('mouseup', handleGlobalMouseUp)
       document.removeEventListener('mousemove', handleGlobalMouseMove)
     }
-  }, [draggedTask, resizingTask])
+  }, [handleGlobalMouseMove])
 
   // Fixed height calculation - no vertical scrolling
   const emptyStateHeight = 150

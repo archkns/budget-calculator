@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
@@ -78,7 +78,7 @@ export function RealtimeCurrencyConverter({
   const [rateSource, setRateSource] = useState<'api' | 'fallback' | 'manual'>('api')
 
   // Fetch real-time exchange rates from public API
-  const fetchExchangeRates = async (baseCurrency: string = currentCurrency) => {
+  const fetchExchangeRates = useCallback(async (baseCurrency: string = currentCurrency) => {
     setIsLoadingRates(true)
     setApiStatus('loading')
     
@@ -114,12 +114,12 @@ export function RealtimeCurrencyConverter({
     } finally {
       setIsLoadingRates(false)
     }
-  }
+  }, [currentCurrency])
 
   // Initialize exchange rates on component mount
   useEffect(() => {
     fetchExchangeRates(currentCurrency)
-  }, [currentCurrency])
+  }, [currentCurrency, fetchExchangeRates])
 
   // Auto-refresh rates every 5 minutes
   useEffect(() => {
@@ -130,7 +130,7 @@ export function RealtimeCurrencyConverter({
     }, 5 * 60 * 1000) // 5 minutes
 
     return () => clearInterval(interval)
-  }, [currentCurrency, rateSource])
+  }, [currentCurrency, rateSource, fetchExchangeRates])
 
   // Get current exchange rate
   const getCurrentRate = (): number => {
