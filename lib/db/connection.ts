@@ -1,11 +1,18 @@
 import { Pool } from 'pg';
 
+// Supabase connection configuration
 const pool = new Pool({
-  host: process.env.PGHOST || 'localhost',
+  connectionString: process.env.DATABASE_URL || 'postgresql://postgres:JI6xxIpg8GKGoo5j@db.ijyatywunqqqxtwmedsg.supabase.co:5432/postgres',
+  // Alternative individual config (fallback)
+  host: process.env.PGHOST || 'db.ijyatywunqqqxtwmedsg.supabase.co',
   port: parseInt(process.env.PGPORT || '5432'),
-  database: process.env.PGDATABASE || 'budget_calculator',
-  user: process.env.PGUSER,
-  password: process.env.PGPASSWORD,
+  database: process.env.PGDATABASE || 'postgres',
+  user: process.env.PGUSER || 'postgres',
+  password: process.env.PGPASSWORD || 'JI6xxIpg8GKGoo5j',
+  // Supabase specific settings
+  ssl: {
+    rejectUnauthorized: false
+  }
 });
 
 export default pool;

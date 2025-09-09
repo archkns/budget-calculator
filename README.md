@@ -38,7 +38,7 @@ A comprehensive internal-only web application for project cost estimation, team 
 - **Framer Motion** for animations
 
 ### Backend
-- **PostgreSQL** database with comprehensive schema
+- **Supabase PostgreSQL** database with comprehensive schema
 - **Next.js API Routes** with Edge/Node runtime optimization
 - **Zod** for validation and type safety
 - **react-hook-form** for form management
@@ -124,17 +124,21 @@ cd budget-calculator
 bun install
 ```
 
-3. **Set up database**
-```bash
-createdb budget_calculator
-psql -d budget_calculator -f lib/db/schema.sql
-psql -d budget_calculator -f lib/db/seed.sql
-```
+3. **Set up Supabase database**
+The application is configured to use Supabase PostgreSQL. The database connection is already set up with the provided connection string.
 
-4. **Configure environment**
+4. **Configure environment (Optional)**
+Create a `.env.local` file if you want to override the default Supabase connection:
 ```bash
-cp .env.local.example .env.local
-# Edit .env.local with your database credentials
+# Supabase Database Configuration
+PGHOST=db.ijyatywunqqqxtwmedsg.supabase.co
+PGPORT=5432
+PGDATABASE=postgres
+PGUSER=postgres
+PGPASSWORD=your_password_here
+
+# Database URL for direct connection
+DATABASE_URL=postgresql://postgres:your_password_here@db.ijyatywunqqqxtwmedsg.supabase.co:5432/postgres
 ```
 
 5. **Run development server**
@@ -197,12 +201,19 @@ bun test
 
 ### Environment Variables
 ```env
-PGDATABASE=budget_calculator
-PGUSER=your_username
-PGPASSWORD=your_password
-PGHOST=localhost
+# Supabase Database Configuration (already configured)
+PGHOST=db.ijyatywunqqqxtwmedsg.supabase.co
 PGPORT=5432
-NEXT_PUBLIC_APP_URL=https://your-domain.com
+PGDATABASE=postgres
+PGUSER=postgres
+PGPASSWORD=your_supabase_password
+
+# Database URL for direct connection
+DATABASE_URL=postgresql://postgres:your_password@db.ijyatywunqqqxtwmedsg.supabase.co:5432/postgres
+
+# Optional: Supabase client configuration
+NEXT_PUBLIC_SUPABASE_URL=https://ijyatywunqqqxtwmedsg.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key_here
 ```
 
 ## 📈 Performance Optimizations
