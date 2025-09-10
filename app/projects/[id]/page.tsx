@@ -297,13 +297,13 @@ export default function ProjectWorkspace() {
   const getStatusDisplayText = (status: string) => {
     switch (status) {
       case 'ACTIVE':
-        return 'ongoing'
+        return 'ACTIVE'
       case 'DRAFT':
-        return 'draft'
+        return 'DRAFT'
       case 'COMPLETED':
-        return 'finished'
+        return 'COMPLETED'
       case 'CANCELLED':
-        return 'cancelled'
+        return 'CANCELLED'
       default:
         return status.toLowerCase()
     }
@@ -715,10 +715,10 @@ export default function ProjectWorkspace() {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="ACTIVE">Ongoing (Green)</SelectItem>
-                          <SelectItem value="DRAFT">Draft (Gray)</SelectItem>
-                          <SelectItem value="COMPLETED">Finished (Blue)</SelectItem>
-                          <SelectItem value="CANCELLED">Cancelled (Red)</SelectItem>
+                          <SelectItem value="ACTIVE">ACTIVE</SelectItem>
+                          <SelectItem value="DRAFT">DRAFT</SelectItem>
+                          <SelectItem value="COMPLETED">COMPLETED</SelectItem>
+                          <SelectItem value="CANCELLED">CANCELLED</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>

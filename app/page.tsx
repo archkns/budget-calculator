@@ -174,10 +174,10 @@ export default function Dashboard() {
                             'bg-red-600 hover:bg-red-700'
                           } text-white`}
                         >
-                          {project.status === 'ACTIVE' ? 'ongoing' :
-                           project.status === 'COMPLETED' ? 'finished' :
-                           project.status === 'DRAFT' ? 'draft' :
-                           project.status === 'CANCELLED' ? 'cancelled' :
+                          {project.status === 'ACTIVE' ? 'ACTIVE' :
+                           project.status === 'COMPLETED' ? 'COMPLETED' :
+                           project.status === 'DRAFT' ? 'DRAFT' :
+                           project.status === 'CANCELLED' ? 'CANCELLED' :
                            project.status.toLowerCase()}
                         </Badge>
                       </div>
