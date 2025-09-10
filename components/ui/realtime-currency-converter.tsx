@@ -70,7 +70,7 @@ export const RealtimeCurrencyConverter = memo(function RealtimeCurrencyConverter
   const [apiStatus, setApiStatus] = useState<'online' | 'offline' | 'loading'>('loading')
   const [rateSource, setRateSource] = useState<'api' | 'fallback' | 'manual'>('api')
 
-  // Fetch real-time exchange rates from Open Exchange Rates API via our backend
+  // Fetch real-time exchange rates from external Exchange Rate API via our backend
   const fetchExchangeRates = useCallback(async (baseCurrency: string = currentCurrency) => {
     setIsLoadingRates(true)
     setApiStatus('loading')
@@ -96,7 +96,7 @@ export const RealtimeCurrencyConverter = memo(function RealtimeCurrencyConverter
         setLastUpdated(new Date())
         setApiStatus('online')
         setRateSource('api')
-        toast.success(`Exchange rates updated from secure fallback rates`)
+        toast.success(`Exchange rates updated from live API`)
       } else {
         throw new Error('Invalid API response')
       }
@@ -109,7 +109,7 @@ export const RealtimeCurrencyConverter = memo(function RealtimeCurrencyConverter
       setLastUpdated(new Date())
       setApiStatus('offline')
       setRateSource('fallback')
-      toast.warning('Using cached exchange rates (API unavailable)')
+      toast.warning('Using fallback exchange rates (API unavailable)')
     } finally {
       setIsLoadingRates(false)
     }

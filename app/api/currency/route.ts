@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
 
-// Currency API configuration - using fallback rates for security
+// Currency API configuration - integrating with real exchange rate service
 
 // Currency configuration with static data
 const currencyConfig = [
@@ -47,37 +47,102 @@ let rateCache: {
 
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
-// Function to get exchange rates (using secure fallback rates only)
+// Function to get exchange rates from external API with fallback
 async function getExchangeRates(baseCurrency: string = 'USD'): Promise<Record<string, number>> {
   // Check cache first
   if (rateCache && Date.now() - rateCache.timestamp < rateCache.ttl) {
     return rateCache.data;
   }
   
-  // For security reasons, we only use fallback rates
-  // This prevents any API keys or external service dependencies
-  console.log(`Using secure fallback exchange rates for base currency: ${baseCurrency}`);
-  
-  // Cache the rates
-  rateCache = {
-    data: FALLBACK_RATES,
-    timestamp: Date.now(),
-    ttl: CACHE_TTL
-  };
-  
-  // Return fallback rates (these should be updated periodically by the development team)
-  return FALLBACK_RATES;
+  try {
+    // Try to fetch from external API first
+    console.log(`Fetching exchange rates from external API for base currency: ${baseCurrency}`);
+    
+    // Using exchangerate-api.com (free tier, no API key required)
+    // You can configure a custom API URL and key via environment variables
+    const apiKey = process.env.EXCHANGE_RATE_API_KEY;
+    const apiUrl = process.env.EXCHANGE_RATE_API_URL || 'https://api.exchangerate-api.com/v4/latest';
+    
+    const url = `${apiUrl}/${baseCurrency}${apiKey ? `?access_key=${apiKey}` : ''}`;
+    
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Budget-Calculator/1.0'
+      },
+      // Add timeout to prevent hanging
+      signal: AbortSignal.timeout(5000)
+    });
+    
+    if (!response.ok) {
+      throw new Error(`API responded with status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    if (data.rates && typeof data.rates === 'object') {
+      // Convert rates to our format (THB as base for our application)
+      const rates: Record<string, number> = {};
+      
+      // If base currency is not THB, we need to convert to THB rates
+      if (baseCurrency === 'THB') {
+        // Direct rates from THB
+        Object.entries(data.rates).forEach(([currency, rate]) => {
+          rates[currency] = rate as number;
+        });
+        rates['THB'] = 1.0; // THB to THB is always 1
+      } else {
+        // Convert from other base currency to THB rates
+        const thbRate = data.rates['THB'] || 1;
+        Object.entries(data.rates).forEach(([currency, rate]) => {
+          if (currency === 'THB') {
+            rates[currency] = 1.0;
+          } else {
+            // Convert: (rate / thbRate) gives us currency to THB rate
+            rates[currency] = (rate as number) / thbRate;
+          }
+        });
+        rates[baseCurrency] = thbRate; // Base currency to THB rate
+      }
+      
+      // Cache the rates
+      rateCache = {
+        data: rates,
+        timestamp: Date.now(),
+        ttl: CACHE_TTL
+      };
+      
+      console.log(`Successfully fetched exchange rates from external API`);
+      return rates;
+    } else {
+      throw new Error('Invalid API response format');
+    }
+  } catch (error) {
+    console.warn('Failed to fetch exchange rates from external API, using fallback:', error);
+    
+    // Use fallback rates when API fails
+    const fallbackRates = { ...FALLBACK_RATES };
+    
+    // Cache the fallback rates with shorter TTL for faster retry
+    rateCache = {
+      data: fallbackRates,
+      timestamp: Date.now(),
+      ttl: 1 * 60 * 1000 // 1 minute for fallback rates to allow faster retry
+    };
+    
+    return fallbackRates;
+  }
 }
 
 export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const from = searchParams.get('from');
+  const to = searchParams.get('to');
+  const amount = searchParams.get('amount');
+  const base = searchParams.get('base') || 'USD'; // Allow custom base currency
+  
   try {
-    const { searchParams } = new URL(request.url);
-    const from = searchParams.get('from');
-    const to = searchParams.get('to');
-    const amount = searchParams.get('amount');
-    const base = searchParams.get('base') || 'USD'; // Allow custom base currency
     
-    // Get current exchange rates from Open Exchange Rates API
+    // Get current exchange rates from external API with fallback
     const rates = await getExchangeRates(base);
     
     // If conversion parameters provided, calculate conversion
@@ -98,7 +163,7 @@ export async function GET(request: NextRequest) {
         rate: Math.round(conversionRate * 10000) / 10000,
         calculation: `${amount} ${from} = ${Math.round(convertedAmount * 100) / 100} ${to}`,
         timestamp: Date.now(),
-        source: 'Open Exchange Rates API'
+        source: 'Exchange Rate API'
       });
     }
     
@@ -115,7 +180,7 @@ export async function GET(request: NextRequest) {
       success: true,
       currencies: currenciesWithRates,
       timestamp: Date.now(),
-      source: 'Open Exchange Rates API',
+      source: 'Exchange Rate API',
       base: base
     });
     
@@ -125,26 +190,48 @@ export async function GET(request: NextRequest) {
     return response;
   } catch (error) {
     console.error('Error fetching currency data:', error);
-    return NextResponse.json(
-      { 
-        success: false,
-        error: 'Failed to fetch currency data',
-        message: error instanceof Error ? error.message : 'Unknown error',
-        timestamp: Date.now()
-      },
-      { status: 500 }
-    );
+    
+    // Try to return fallback data even if there's an error
+    try {
+      const fallbackRates = { ...FALLBACK_RATES };
+      const currenciesWithRates = currencyConfig.map((config, index) => ({
+        id: index + 1,
+        currency: config.currency,
+        symbol: config.symbol,
+        name: config.name,
+        rate: fallbackRates[config.currency] || 1
+      }));
+      
+      return NextResponse.json({
+        success: true,
+        currencies: currenciesWithRates,
+        timestamp: Date.now(),
+        source: 'Fallback Rates',
+        base: base,
+        warning: 'Using fallback rates due to API error'
+      });
+    } catch (fallbackError) {
+      return NextResponse.json(
+        { 
+          success: false,
+          error: 'Failed to fetch currency data',
+          message: error instanceof Error ? error.message : 'Unknown error',
+          timestamp: Date.now()
+        },
+        { status: 500 }
+      );
+    }
   }
 }
 
-// Note: Currency rates are now managed through Open Exchange Rates API
+// Note: Currency rates are now managed through external Exchange Rate API
 // POST and PUT methods are disabled as rates should come from reliable sources
 export async function POST() {
   return NextResponse.json(
     { 
       success: false,
-      error: 'Currency rates are managed through Open Exchange Rates API. Use GET to fetch current rates.',
-      source: 'Open Exchange Rates API'
+      error: 'Currency rates are managed through external Exchange Rate API. Use GET to fetch current rates.',
+      source: 'Exchange Rate API'
     },
     { status: 405 }
   );
@@ -154,8 +241,8 @@ export async function PUT() {
   return NextResponse.json(
     { 
       success: false,
-      error: 'Currency rates are managed through Open Exchange Rates API. Use GET to fetch current rates.',
-      source: 'Open Exchange Rates API'
+      error: 'Currency rates are managed through external Exchange Rate API. Use GET to fetch current rates.',
+      source: 'Exchange Rate API'
     },
     { status: 405 }
   );

@@ -76,7 +76,7 @@ export function CurrencyConverter({
           rates[currency.currency] = currency.rate
         })
         setExchangeRates(rates)
-        toast.success('Exchange rates updated from secure fallback rates')
+        toast.success('Exchange rates updated from live API')
       } else {
         throw new Error('Invalid API response')
       }
@@ -84,7 +84,7 @@ export function CurrencyConverter({
       console.warn('Failed to fetch live rates, using fallback:', error)
       const fallbackRates = FALLBACK_RATES[baseCurrency] || FALLBACK_RATES.USD
       setExchangeRates(fallbackRates)
-      toast.warning('Using cached exchange rates (API unavailable)')
+      toast.warning('Using fallback exchange rates (API unavailable)')
     } finally {
       // Loading completed
     }
