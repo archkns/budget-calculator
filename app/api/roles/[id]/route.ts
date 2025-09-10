@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { query } from '@/lib/db/connection';
+import { supabaseAdmin, handleSupabaseError, isSupabaseConfigured } from '@/lib/supabase';
 import { RoleSchema } from '@/lib/schemas';
 
 export const runtime = 'nodejs';
@@ -11,13 +11,55 @@ export async function GET(
   try {
     const { id: idParam } = await params;
     const id = parseInt(idParam);
-    const result = await query('SELECT * FROM roles WHERE id = $1', [id]);
     
-    if (result.rows.length === 0) {
+    if (isNaN(id)) {
+      return NextResponse.json({ error: 'Invalid role ID' }, { status: 400 });
+    }
+
+    // Check if Supabase is configured
+    if (!isSupabaseConfigured) {
+      console.warn('Supabase not configured, returning mock role')
+      // Return mock role for development
+      const mockRole = {
+        id: id,
+        name: 'Mock Role',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
+      return NextResponse.json(mockRole)
+    }
+
+    let role, error;
+    try {
+      const result = await supabaseAdmin()
+        .from('roles')
+        .select('*')
+        .eq('id', id)
+        .single();
+      
+      role = result.data;
+      error = result.error;
+    } catch (supabaseError) {
+      console.error('Supabase client initialization error:', supabaseError)
+      return NextResponse.json(
+        { error: 'Database connection failed' },
+        { status: 500 }
+      )
+    }
+    
+    if (error) {
+      const errorResponse = handleSupabaseError(error, 'fetch role');
+      return NextResponse.json(
+        { error: errorResponse.error },
+        { status: errorResponse.status }
+      );
+    }
+
+    if (!role) {
       return NextResponse.json({ error: 'Role not found' }, { status: 404 });
     }
     
-    return NextResponse.json(result.rows[0]);
+    return NextResponse.json(role);
   } catch (error) {
     console.error('Error fetching role:', error);
     return NextResponse.json(
@@ -34,19 +76,80 @@ export async function PUT(
   try {
     const { id: idParam } = await params;
     const id = parseInt(idParam);
-    const body = await request.json();
-    const validatedData = RoleSchema.omit({ id: true, created_at: true, updated_at: true }).parse(body);
     
-    const result = await query(
-      'UPDATE roles SET name = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *',
-      [validatedData.name, id]
-    );
+    if (isNaN(id)) {
+      return NextResponse.json({ error: 'Invalid role ID' }, { status: 400 });
+    }
+
+    // Parse JSON body with proper error handling
+    let body: unknown
+    try {
+      const text = await request.text()
+      if (!text || text.trim() === '') {
+        return NextResponse.json(
+          { error: 'Request body is required' },
+          { status: 400 }
+        )
+      }
+      body = JSON.parse(text)
+    } catch (parseError) {
+      console.error('JSON parsing error:', parseError)
+      return NextResponse.json(
+        { error: 'Invalid JSON in request body' },
+        { status: 400 }
+      )
+    }
     
-    if (result.rows.length === 0) {
+    const validatedData = RoleSchema.omit({ id: true, created_at: true, updated_at: true }).parse(body as Record<string, unknown>);
+
+    // Check if Supabase is configured
+    if (!isSupabaseConfigured) {
+      console.warn('Supabase not configured, returning mock response')
+      // Return a mock response for development
+      const mockRole = {
+        id: id,
+        name: validatedData.name,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
+      return NextResponse.json(mockRole)
+    }
+
+    let updatedRole, error;
+    try {
+      const result = await supabaseAdmin()
+        .from('roles')
+        .update({ 
+          name: validatedData.name,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select()
+        .single();
+      
+      updatedRole = result.data;
+      error = result.error;
+    } catch (supabaseError) {
+      console.error('Supabase client initialization error:', supabaseError)
+      return NextResponse.json(
+        { error: 'Database connection failed' },
+        { status: 500 }
+      )
+    }
+
+    if (error) {
+      const errorResponse = handleSupabaseError(error, 'update role');
+      return NextResponse.json(
+        { error: errorResponse.error },
+        { status: errorResponse.status }
+      );
+    }
+
+    if (!updatedRole) {
       return NextResponse.json({ error: 'Role not found' }, { status: 404 });
     }
     
-    return NextResponse.json(result.rows[0]);
+    return NextResponse.json(updatedRole);
   } catch (error) {
     console.error('Error updating role:', error);
     return NextResponse.json(
@@ -64,24 +167,76 @@ export async function DELETE(
     const { id: idParam } = await params;
     const id = parseInt(idParam);
     
+    if (isNaN(id)) {
+      return NextResponse.json({ error: 'Invalid role ID' }, { status: 400 });
+    }
+
+    // Check if Supabase is configured
+    if (!isSupabaseConfigured) {
+      console.warn('Supabase not configured, returning mock response')
+      return NextResponse.json({ message: 'Role deleted successfully' })
+    }
+    
     // Check if role is referenced by team members or rate cards
-    const references = await query(
-      'SELECT COUNT(*) as count FROM team_members WHERE role_id = $1 UNION ALL SELECT COUNT(*) as count FROM rate_cards WHERE role_id = $1',
-      [id]
-    );
-    
-    const totalReferences = references.rows.reduce((sum, row) => sum + parseInt(row.count), 0);
-    
-    if (totalReferences > 0) {
+    let references, referencesError;
+    try {
+      const teamMembersResult = await supabaseAdmin()
+        .from('team_members')
+        .select('id')
+        .eq('role_id', id)
+        .limit(1);
+      
+      const rateCardsResult = await supabaseAdmin()
+        .from('rate_cards')
+        .select('id')
+        .eq('role_id', id)
+        .limit(1);
+      
+      const hasTeamMembers = teamMembersResult.data && teamMembersResult.data.length > 0;
+      const hasRateCards = rateCardsResult.data && rateCardsResult.data.length > 0;
+      
+      if (hasTeamMembers || hasRateCards) {
+        return NextResponse.json(
+          { error: 'Cannot delete role that is referenced by team members or rate cards' },
+          { status: 409 }
+        );
+      }
+    } catch (supabaseError) {
+      console.error('Supabase client initialization error:', supabaseError)
       return NextResponse.json(
-        { error: 'Cannot delete role that is referenced by team members or rate cards' },
-        { status: 409 }
+        { error: 'Database connection failed' },
+        { status: 500 }
+      )
+    }
+    
+    let deletedRole, error;
+    try {
+      const result = await supabaseAdmin()
+        .from('roles')
+        .delete()
+        .eq('id', id)
+        .select()
+        .single();
+      
+      deletedRole = result.data;
+      error = result.error;
+    } catch (supabaseError) {
+      console.error('Supabase client initialization error:', supabaseError)
+      return NextResponse.json(
+        { error: 'Database connection failed' },
+        { status: 500 }
+      )
+    }
+
+    if (error) {
+      const errorResponse = handleSupabaseError(error, 'delete role');
+      return NextResponse.json(
+        { error: errorResponse.error },
+        { status: errorResponse.status }
       );
     }
     
-    const result = await query('DELETE FROM roles WHERE id = $1 RETURNING *', [id]);
-    
-    if (result.rows.length === 0) {
+    if (!deletedRole) {
       return NextResponse.json({ error: 'Role not found' }, { status: 404 });
     }
     

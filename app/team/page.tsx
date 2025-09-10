@@ -17,12 +17,15 @@ import Link from 'next/link'
 interface TeamMember {
   id: number
   name: string
-  role_name?: string
   custom_role?: string
   tier?: string
   default_rate_per_day: number
   status: string
   notes?: string
+  roles?: {
+    id: number
+    name: string
+  }
 }
 
 export default function TeamLibrary() {
@@ -60,13 +63,13 @@ export default function TeamLibrary() {
   useEffect(() => {
     const filtered = teamMembers.filter(member => {
       const matchesSearch = member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           (member.role_name?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                           (member.roles?.name?.toLowerCase().includes(searchTerm.toLowerCase())) ||
                            (member.custom_role?.toLowerCase().includes(searchTerm.toLowerCase()))
       
       const matchesStatus = statusFilter === 'all' || member.status === statusFilter
       
       const matchesRole = roleFilter === 'all' || 
-                         member.role_name === roleFilter || 
+                         member.roles?.name === roleFilter || 
                          member.custom_role === roleFilter
       
       return matchesSearch && matchesStatus && matchesRole
@@ -211,7 +214,7 @@ export default function TeamLibrary() {
                     <TableRow key={member.id}>
                       <TableCell className="font-medium">{member.name}</TableCell>
                       <TableCell>
-                        {member.role_name || member.custom_role}
+                        {member.roles?.name || member.custom_role}
                         {member.custom_role && (
                           <Badge variant="outline" className="ml-2 text-xs">Custom</Badge>
                         )}

@@ -86,3 +86,38 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Holiday ID is required' },
+        { status: 400 }
+      );
+    }
+
+    const { error } = await supabaseAdmin()
+      .from('public_holidays')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      const errorResponse = handleSupabaseError(error, 'delete holiday');
+      return NextResponse.json(
+        { error: errorResponse.error },
+        { status: errorResponse.status }
+      );
+    }
+
+    return NextResponse.json({ message: 'Holiday deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting holiday:', error);
+    return NextResponse.json(
+      { error: 'Failed to delete holiday' },
+      { status: 500 }
+    );
+  }
+}
