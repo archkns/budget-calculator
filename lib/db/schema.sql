@@ -66,10 +66,7 @@ CREATE TABLE IF NOT EXISTS project_assignments (
   daily_rate DECIMAL(10,2) NOT NULL,
   days_allocated INTEGER DEFAULT 0,
   utilization_percentage INTEGER DEFAULT 100,
-  multiplier DECIMAL(5,2) DEFAULT 1.0,
-  is_billable BOOLEAN DEFAULT true,
   ignore_holidays BOOLEAN DEFAULT false,
-  custom_multipliers JSONB DEFAULT '{}',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -80,8 +77,6 @@ CREATE TABLE IF NOT EXISTS public_holidays (
   project_id INTEGER REFERENCES projects(id) ON DELETE CASCADE,
   date DATE NOT NULL,
   name VARCHAR(255) NOT NULL,
-  treatment VARCHAR(20) DEFAULT 'EXCLUDE' CHECK (treatment IN ('EXCLUDE', 'BILLABLE', 'INFO_ONLY')),
-  multiplier DECIMAL(5,2) DEFAULT 1.0,
   is_custom BOOLEAN DEFAULT false,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

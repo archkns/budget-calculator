@@ -61,10 +61,7 @@ export interface ProjectAssignment {
   daily_rate: number
   days_allocated: number
   utilization_percentage: number
-  multiplier: number
-  is_billable: boolean
   ignore_holidays: boolean
-  custom_multipliers: Record<string, number>
   created_at: string
   updated_at: string
 }
@@ -74,8 +71,6 @@ export interface PublicHoliday {
   project_id: number | null
   date: string
   name: string
-  treatment: 'EXCLUDE' | 'BILLABLE' | 'INFO_ONLY'
-  multiplier: number
   is_custom: boolean
   created_at: string
 }

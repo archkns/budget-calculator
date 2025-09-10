@@ -53,22 +53,6 @@ interface MyHoraResponse {
   VCALENDAR: MyHoraCalendar[]
 }
 
-// Helper function to map external API type to database treatment
-function mapTypeToTreatment(type: string): 'EXCLUDE' | 'BILLABLE' | 'INFO_ONLY' {
-  switch (type.toLowerCase()) {
-    case 'public':
-    case 'religious':
-    case 'national':
-      return 'EXCLUDE'
-    case 'billable':
-      return 'BILLABLE'
-    case 'info':
-    case 'info_only':
-      return 'INFO_ONLY'
-    default:
-      return 'EXCLUDE'
-  }
-}
 
 export async function GET(request: NextRequest) {
   try {
@@ -108,8 +92,6 @@ export async function GET(request: NextRequest) {
       id: holiday.id || `holiday-${index}`,
       name: holiday.name,
       date: holiday.date,
-      treatment: mapTypeToTreatment(holiday.type || 'public'),
-      multiplier: 1.0,
       is_custom: false,
       project_id: null,
       type: holiday.type || 'public', // Keep for external API compatibility
@@ -264,8 +246,6 @@ export async function POST(request: NextRequest) {
     const holidaysToInsert = data.holidays.map((holiday: Record<string, unknown>) => ({
       name: holiday.name as string,
       date: holiday.date as string,
-      treatment: (holiday.treatment as string) || mapTypeToTreatment((holiday.type as string) || 'public'),
-      multiplier: (holiday.multiplier as number) || 1.0,
       is_custom: (holiday.is_custom as boolean) || false,
       project_id: projectId ? parseInt(projectId) : null
     }))

@@ -16,8 +16,6 @@ interface Holiday {
   id: number
   name: string
   date: string
-  treatment: 'EXCLUDE' | 'BILLABLE' | 'INFO_ONLY'
-  multiplier: number
   is_custom: boolean
   project_id: number | null
   created_at: string
@@ -121,18 +119,6 @@ export default function HolidaysPage() {
     }
   }
 
-  const getTreatmentBadgeVariant = (treatment: string) => {
-    switch (treatment) {
-      case 'EXCLUDE':
-        return 'destructive'
-      case 'BILLABLE':
-        return 'default'
-      case 'INFO_ONLY':
-        return 'secondary'
-      default:
-        return 'outline'
-    }
-  }
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -265,8 +251,6 @@ export default function HolidaysPage() {
                 <TableRow>
                   <TableHead>Date</TableHead>
                   <TableHead>Name</TableHead>
-                  <TableHead>Treatment</TableHead>
-                  <TableHead>Multiplier</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
@@ -276,12 +260,6 @@ export default function HolidaysPage() {
                   <TableRow key={holiday.id}>
                     <TableCell>{formatDate(holiday.date)}</TableCell>
                     <TableCell className="font-medium">{holiday.name}</TableCell>
-                    <TableCell>
-                      <Badge variant={getTreatmentBadgeVariant(holiday.treatment)}>
-                        {holiday.treatment}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{holiday.multiplier}x</TableCell>
                     <TableCell>
                       <Badge variant={holiday.is_custom ? 'default' : 'secondary'}>
                         {holiday.is_custom ? 'Custom' : 'Public'}

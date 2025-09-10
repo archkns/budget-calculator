@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useParams } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -23,11 +24,15 @@ import Link from 'next/link'
 interface TeamMember {
   id: number
   name: string
-  role: string
-  level: string
-  dailyRate: number
+  custom_role?: string
+  tier?: string
+  default_rate_per_day: number
   status: 'ACTIVE' | 'INACTIVE'
   notes?: string
+  roles?: {
+    id: number
+    name: string
+  }
 }
 
 interface ProjectAssignment {
@@ -75,19 +80,22 @@ interface GanttTask {
 
 export default function ProjectWorkspace() {
   const router = useRouter()
+  const params = useParams()
+  const projectId = params.id as string
+  
   const [project, setProject] = useState({
-    id: 1,
-    name: 'E-commerce Platform Redesign',
-    client: 'TechCorp Ltd.',
+    id: parseInt(projectId) || 1,
+    name: '',
+    client: '',
     currency: { code: 'THB', symbol: '฿' },
     hoursPerDay: 7,
     taxEnabled: false,
     taxPercentage: 7,
-    proposedPrice: 3000000,
-    startDate: new Date('2025-09-15'),
-    executionDays: 45,
-    guaranteePeriod: 8, // New: Guarantee period in days
-    finalDays: 53 // New: Total days including guarantee period
+    proposedPrice: 0,
+    startDate: new Date(),
+    executionDays: 0,
+    guaranteePeriod: 8,
+    finalDays: 0
   })
 
   const [assignments, setAssignments] = useState<ProjectAssignment[]>([])
@@ -96,6 +104,35 @@ export default function ProjectWorkspace() {
   const [, setLoading] = useState(false)
   const [showAddTeamMember, setShowAddTeamMember] = useState(false)
   const [selectedTeamMember, setSelectedTeamMember] = useState<TeamMember | null>(null)
+
+  const fetchProject = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/projects/${projectId}`)
+      if (response.ok) {
+        const projectData = await response.json()
+        setProject({
+          id: projectData.id,
+          name: projectData.name,
+          client: projectData.client || '',
+          currency: { code: projectData.currency_code, symbol: projectData.currency_symbol },
+          hoursPerDay: projectData.hours_per_day,
+          taxEnabled: projectData.tax_enabled,
+          taxPercentage: projectData.tax_percentage,
+          proposedPrice: projectData.proposed_price || 0,
+          startDate: projectData.start_date ? new Date(projectData.start_date) : new Date(),
+          executionDays: projectData.execution_days || 0,
+          guaranteePeriod: projectData.guarantee_days || 8,
+          finalDays: (projectData.execution_days || 0) + (projectData.guarantee_days || 8)
+        })
+      } else {
+        console.error('Failed to fetch project:', response.statusText)
+        toast.error('Failed to load project data')
+      }
+    } catch (error) {
+      console.error('Error fetching project:', error)
+      toast.error('Failed to load project data')
+    }
+  }, [projectId])
 
   const fetchTeamLibrary = async () => {
     try {
@@ -129,11 +166,12 @@ export default function ProjectWorkspace() {
     }
   }, [project.id])
 
-  // Fetch team library and holidays on load
+  // Fetch project data, team library and holidays on load
   useEffect(() => {
+    fetchProject()
     fetchTeamLibrary()
     fetchHolidays()
-  }, [fetchHolidays])
+  }, [fetchHolidays, projectId, fetchProject])
 
   const calculateWorkdays = (startDate: Date, days: number, holidays: Holiday[]): Date => {
     let currentDate = new Date(startDate)
@@ -193,9 +231,9 @@ export default function ProjectWorkspace() {
       id: assignments.length + 1,
       teamMemberId: teamMember.id,
       name: teamMember.name,
-      role: teamMember.role,
-      tier: teamMember.level,
-      dailyRate: teamMember.dailyRate,
+      role: teamMember.roles?.name || teamMember.custom_role || 'No role',
+      tier: teamMember.tier || 'No tier',
+      dailyRate: teamMember.default_rate_per_day,
       daysAllocated: 0,
       bufferDays: 0,
       totalMandays: 0,
@@ -433,7 +471,7 @@ export default function ProjectWorkspace() {
           <h1 className="text-3xl font-bold text-slate-900">{project.name}</h1>
           <p className="text-slate-600 mt-2">Client: {project.client}</p>
           <p className="text-slate-500 text-sm mt-1">
-            {format(project.startDate, 'MMM dd, yyyy')} - {format(projectDates.projectEndDate, 'MMM dd, yyyy')}
+            {format(project.startDate, 'dd MMM yyyy')} - {format(projectDates.projectEndDate, 'dd MMM yyyy')}
           </p>
         </div>
 
@@ -536,7 +574,7 @@ export default function ProjectWorkspace() {
                       <PopoverTrigger asChild>
                         <Button variant="outline" className="w-full justify-start text-left font-normal">
                           <CalendarIcon className="mr-2 h-4 w-4" />
-                          {format(project.startDate, 'PPP')}
+                          {format(project.startDate, 'dd MMM yyyy')}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
@@ -554,7 +592,7 @@ export default function ProjectWorkspace() {
                     <div>
                       <Label>Execution End</Label>
                       <Input
-                        value={format(projectDates.executionEndDate, 'MMM dd, yyyy')}
+                        value={format(projectDates.executionEndDate, 'dd MMM yyyy')}
                         disabled
                         className="bg-slate-50"
                       />
@@ -563,7 +601,7 @@ export default function ProjectWorkspace() {
                     <div>
                       <Label>Project End</Label>
                       <Input
-                        value={format(projectDates.projectEndDate, 'MMM dd, yyyy')}
+                        value={format(projectDates.projectEndDate, 'dd MMM yyyy')}
                         disabled
                         className="bg-slate-50"
                       />
@@ -627,7 +665,7 @@ export default function ProjectWorkspace() {
                               .filter(member => member.status === 'ACTIVE')
                               .map(member => (
                                 <SelectItem key={member.id} value={member.id.toString()}>
-                                  {member.name} - {member.role}
+                                  {member.name} - {member.roles?.name || member.custom_role || 'No role'}
                                 </SelectItem>
                               ))
                             }
@@ -751,7 +789,7 @@ export default function ProjectWorkspace() {
                       .map((holiday) => (
                         <TableRow key={holiday.id}>
                           <TableCell className="font-medium">{holiday.name}</TableCell>
-                          <TableCell>{format(holiday.date, 'MMM dd, yyyy')}</TableCell>
+                          <TableCell>{format(holiday.date, 'dd MMM yyyy')}</TableCell>
                           <TableCell>
                             <Badge variant={holiday.type === 'public' ? 'default' : 'secondary'}>
                               {holiday.type}

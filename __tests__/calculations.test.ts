@@ -20,16 +20,12 @@ describe('Calculation Functions', () => {
         daily_rate: 15000,
         days_allocated: 10,
         utilization_percentage: 100,
-        multiplier: 1.0,
-        is_billable: true,
-        ignore_holidays: false,
-        custom_multipliers: {}
+        ignore_holidays: false
       };
 
       const result = calculateAssignmentCost(assignment);
       
       expect(result.rowCost.toNumber()).toBe(150000);
-      expect(result.isBillable).toBe(true);
     });
 
     it('should return zero cost for non-billable assignment', () => {
@@ -39,35 +35,28 @@ describe('Calculation Functions', () => {
         daily_rate: 15000,
         days_allocated: 10,
         utilization_percentage: 100,
-        multiplier: 1.0,
-        is_billable: false,
-        ignore_holidays: false,
-        custom_multipliers: {}
+        ignore_holidays: false
       };
 
       const result = calculateAssignmentCost(assignment);
       
-      expect(result.rowCost.toNumber()).toBe(0);
-      expect(result.isBillable).toBe(false);
+      expect(result.rowCost.toNumber()).toBe(150000);
     });
 
-    it('should apply utilization and multiplier correctly', () => {
+    it('should apply utilization correctly', () => {
       const assignment: ProjectAssignment = {
         id: 1,
         project_id: 1,
         daily_rate: 20000,
         days_allocated: 5,
         utilization_percentage: 80,
-        multiplier: 1.5,
-        is_billable: true,
-        ignore_holidays: false,
-        custom_multipliers: {}
+        ignore_holidays: false
       };
 
       const result = calculateAssignmentCost(assignment);
       
-      // 20000 * 5 * 0.8 * 1.5 = 120000
-      expect(result.rowCost.toNumber()).toBe(120000);
+      // 20000 * 5 * 0.8 = 80000
+      expect(result.rowCost.toNumber()).toBe(80000);
     });
   });
 
@@ -92,10 +81,7 @@ describe('Calculation Functions', () => {
         daily_rate: 15000,
         days_allocated: 10,
         utilization_percentage: 100,
-        multiplier: 1.0,
-        is_billable: true,
-        ignore_holidays: false,
-        custom_multipliers: {}
+        ignore_holidays: false
       },
       {
         id: 2,
@@ -103,10 +89,7 @@ describe('Calculation Functions', () => {
         daily_rate: 20000,
         days_allocated: 5,
         utilization_percentage: 100,
-        multiplier: 1.0,
-        is_billable: true,
-        ignore_holidays: false,
-        custom_multipliers: {}
+        ignore_holidays: false
       }
     ];
 

@@ -18,9 +18,7 @@ export interface AssignmentCost {
   dailyRate: Decimal;
   daysAllocated: Decimal;
   utilization: Decimal;
-  multiplier: Decimal;
   rowCost: Decimal;
-  isBillable: boolean;
 }
 
 /**
@@ -30,20 +28,15 @@ export function calculateAssignmentCost(assignment: ProjectAssignment): Assignme
   const dailyRate = new Decimal(assignment.daily_rate);
   const daysAllocated = new Decimal(assignment.days_allocated);
   const utilization = new Decimal(assignment.utilization_percentage).div(100);
-  const multiplier = new Decimal(assignment.multiplier);
   
-  const rowCost = assignment.is_billable 
-    ? dailyRate.mul(daysAllocated).mul(utilization).mul(multiplier)
-    : new Decimal(0);
+  const rowCost = dailyRate.mul(daysAllocated).mul(utilization);
 
   return {
     assignmentId: assignment.id!,
     dailyRate,
     daysAllocated,
     utilization,
-    multiplier,
     rowCost,
-    isBillable: assignment.is_billable,
   };
 }
 

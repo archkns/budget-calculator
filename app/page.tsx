@@ -1,41 +1,55 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Plus, Calculator, Users, FileText, Settings } from 'lucide-react'
 import Link from 'next/link'
+import { toast } from 'sonner'
+
+interface Project {
+  id: number
+  name: string
+  client: string | null
+  status: string
+  proposed_price: number | null
+  created_at: string
+  updated_at: string
+}
 
 export default function Dashboard() {
-  const [projects] = useState([
-    {
-      id: 1,
-      name: 'E-commerce Platform Redesign',
-      client: 'TechCorp Ltd.',
-      status: 'active',
-      cost: 2450000,
-      proposedPrice: 3000000,
-      roi: 22.4,
-      lastUpdated: '2025-09-08'
-    },
-    {
-      id: 2,
-      name: 'Mobile Banking App',
-      client: 'FinanceBank',
-      status: 'draft',
-      cost: 1800000,
-      proposedPrice: 2200000,
-      roi: 22.2,
-      lastUpdated: '2025-09-07'
+  const [projects, setProjects] = useState<Project[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const fetchProjects = async () => {
+    try {
+      setLoading(true)
+      const response = await fetch('/api/projects')
+      if (response.ok) {
+        const data = await response.json()
+        setProjects(data)
+      } else {
+        console.error('Failed to fetch projects:', response.statusText)
+        toast.error('Failed to load projects')
+      }
+    } catch (error) {
+      console.error('Error fetching projects:', error)
+      toast.error('Failed to load projects')
+    } finally {
+      setLoading(false)
     }
-  ])
+  }
+
+  useEffect(() => {
+    fetchProjects()
+  }, [])
 
   const stats = {
     totalProjects: projects.length,
-    activeProjects: projects.filter(p => p.status === 'active').length,
-    totalRevenue: projects.reduce((sum, p) => sum + p.proposedPrice, 0),
-    avgROI: projects.reduce((sum, p) => sum + p.roi, 0) / projects.length
+    activeProjects: projects.filter(p => p.status === 'ACTIVE').length,
+    totalRevenue: projects.reduce((sum, p) => sum + (p.proposed_price || 0), 0),
+    avgROI: 0 // We'll calculate this when we have cost data
   }
 
   return (
@@ -129,40 +143,48 @@ export default function Dashboard() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {projects.map((project) => (
-                <div key={project.id} className="flex items-center justify-between p-4 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-3">
-                      <h3 className="font-semibold text-slate-900">{project.name}</h3>
-                      <Badge variant={project.status === 'active' ? 'default' : 'secondary'}>
-                        {project.status}
-                      </Badge>
+            {loading ? (
+              <div className="text-center py-8 text-slate-500">
+                Loading projects...
+              </div>
+            ) : projects.length === 0 ? (
+              <div className="text-center py-8 text-slate-500">
+                No projects found. Create your first project to get started.
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {projects.map((project) => (
+                  <div key={project.id} className="flex items-center justify-between p-4 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-3">
+                        <h3 className="font-semibold text-slate-900">{project.name}</h3>
+                        <Badge variant={project.status === 'ACTIVE' ? 'default' : 'secondary'}>
+                          {project.status.toLowerCase()}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-slate-600 mt-1">{project.client || 'No client specified'}</p>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Last updated: {new Date(project.updated_at).toLocaleDateString()}
+                      </p>
                     </div>
-                    <p className="text-sm text-slate-600 mt-1">{project.client}</p>
-                    <p className="text-xs text-slate-500 mt-1">Last updated: {project.lastUpdated}</p>
+                    
+                    <div className="flex items-center space-x-6 text-right">
+                      <div>
+                        <p className="text-sm font-medium text-slate-900">Proposed</p>
+                        <p className="text-sm text-slate-600">
+                          ฿{(project.proposed_price || 0).toLocaleString()}
+                        </p>
+                      </div>
+                      <Link href={`/projects/${project.id}`}>
+                        <Button variant="outline" size="sm">
+                          View Details
+                        </Button>
+                      </Link>
+                    </div>
                   </div>
-                  
-                  <div className="flex items-center space-x-6 text-right">
-                    <div>
-                      <p className="text-sm font-medium text-slate-900">Cost</p>
-                      <p className="text-sm text-slate-600">฿{project.cost.toLocaleString()}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-slate-900">Proposed</p>
-                      <p className="text-sm text-slate-600">฿{project.proposedPrice.toLocaleString()}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-slate-900">ROI</p>
-                      <p className="text-sm text-green-600 font-medium">{project.roi}%</p>
-                    </div>
-                    <Button variant="outline" size="sm">
-                      View Details
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 

@@ -3,7 +3,6 @@ import { z } from 'zod';
 // Enums
 export const TierLevel = z.enum(['TEAM_LEAD', 'SENIOR', 'JUNIOR']);
 export const TeamMemberStatus = z.enum(['ACTIVE', 'INACTIVE']);
-export const HolidayTreatment = z.enum(['EXCLUDE', 'BILLABLE', 'INFO_ONLY']);
 export const WorkingWeek = z.enum(['MON_TO_FRI', 'MON_TO_SAT', 'CUSTOM']);
 
 // Base schemas
@@ -67,10 +66,8 @@ export const ProjectAssignmentSchema = z.object({
   daily_rate: z.number().positive('Daily rate must be positive'),
   days_allocated: z.number().min(0).default(0),
   utilization_percentage: z.number().min(0).max(100).default(100),
-  multiplier: z.number().min(0).default(1.0),
   is_billable: z.boolean().default(true),
   ignore_holidays: z.boolean().default(false),
-  custom_multipliers: z.record(z.string(), z.number()).default({}),
   created_at: z.date().optional(),
   updated_at: z.date().optional(),
 });
@@ -80,8 +77,6 @@ export const PublicHolidaySchema = z.object({
   project_id: z.number().optional(),
   date: z.date(),
   name: z.string().min(1, 'Holiday name is required').max(255),
-  treatment: HolidayTreatment.default('EXCLUDE'),
-  multiplier: z.number().min(0).default(1.0),
   is_custom: z.boolean().default(false),
   created_at: z.date().optional(),
 });
@@ -142,4 +137,3 @@ export type TeamMemberCSV = z.infer<typeof TeamMemberCSVSchema>;
 export type HolidayCSV = z.infer<typeof HolidayCSVSchema>;
 export type TierLevelType = z.infer<typeof TierLevel>;
 export type TeamMemberStatusType = z.infer<typeof TeamMemberStatus>;
-export type HolidayTreatmentType = z.infer<typeof HolidayTreatment>;

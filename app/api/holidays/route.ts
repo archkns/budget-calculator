@@ -62,8 +62,6 @@ export async function POST(request: NextRequest) {
         project_id: validatedData.project_id,
         date: validatedData.date,
         name: validatedData.name,
-        treatment: validatedData.treatment,
-        multiplier: validatedData.multiplier,
         is_custom: validatedData.is_custom
       })
       .select()
