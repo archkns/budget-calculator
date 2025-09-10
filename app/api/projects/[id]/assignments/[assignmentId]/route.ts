@@ -25,7 +25,16 @@ export async function PUT(
       return NextResponse.json({ message: 'Assignment updated successfully' })
     }
 
-    const updateData: any = {}
+    const updateData: {
+      daily_rate?: number;
+      days_allocated?: number;
+      buffer_days?: number;
+      start_date?: string;
+      end_date?: string;
+      custom_name?: string;
+      custom_role?: string;
+      custom_tier?: string;
+    } = {}
     
     // Map frontend fields to database fields
     if (body.dailyRate !== undefined) updateData.daily_rate = parseFloat(body.dailyRate)

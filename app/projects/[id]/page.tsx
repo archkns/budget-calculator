@@ -243,23 +243,7 @@ export default function ProjectWorkspace() {
 
   const projectDates = calculateProjectDates()
 
-  // Check if project end date has passed and update status automatically
-  useEffect(() => {
-    const checkProjectStatus = () => {
-      const today = new Date()
-      const endDate = projectDates.projectEndDate
-      
-      if (project.status !== 'COMPLETED' && project.status !== 'CANCELLED' && today > endDate) {
-        setProject(prev => ({ ...prev, status: 'COMPLETED' }))
-        // Update status in database
-        updateProjectStatus('COMPLETED')
-      }
-    }
-    
-    checkProjectStatus()
-  }, [projectDates.projectEndDate, project.status])
-
-  const updateProjectStatus = async (newStatus: 'ACTIVE' | 'DRAFT' | 'COMPLETED' | 'CANCELLED') => {
+  const updateProjectStatus = useCallback(async (newStatus: 'ACTIVE' | 'DRAFT' | 'COMPLETED' | 'CANCELLED') => {
     try {
       const response = await fetch(`/api/projects/${projectId}`, {
         method: 'PUT',
@@ -277,7 +261,23 @@ export default function ProjectWorkspace() {
       console.error('Error updating project status:', error)
       toast.error('Failed to update project status')
     }
-  }
+  }, [projectId])
+
+  // Check if project end date has passed and update status automatically
+  useEffect(() => {
+    const checkProjectStatus = () => {
+      const today = new Date()
+      const endDate = projectDates.projectEndDate
+      
+      if (project.status !== 'COMPLETED' && project.status !== 'CANCELLED' && today > endDate) {
+        setProject(prev => ({ ...prev, status: 'COMPLETED' }))
+        // Update status in database
+        updateProjectStatus('COMPLETED')
+      }
+    }
+    
+    checkProjectStatus()
+  }, [projectDates.projectEndDate, project.status, updateProjectStatus])
 
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
@@ -476,7 +476,12 @@ export default function ProjectWorkspace() {
     if (!assignment) return
 
     try {
-      let updateData: any = {}
+      let updateData: {
+        bufferDays?: number;
+        daysAllocated?: number;
+        startDate?: string;
+        endDate?: string;
+      } = {}
       
       if (isBuffer) {
         // Update buffer phase
