@@ -14,7 +14,7 @@ import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { InteractiveGantt } from '@/components/ui/interactive-gantt'
-import { Calculator, Plus, Trash2, FileText, TrendingUp, TrendingDown, CalendarIcon } from 'lucide-react'
+import { Calculator, Plus, Trash2, FileText, TrendingUp, TrendingDown, CalendarIcon, Edit, Check } from 'lucide-react'
 import { format, addDays, isWeekend, differenceInDays } from 'date-fns'
 import { toast } from 'sonner'
 import { RealtimeCurrencyConverter } from "@/components/ui/realtime-currency-converter"
@@ -88,6 +88,7 @@ export default function ProjectWorkspace() {
     name: '',
     client: '',
     currency: { code: 'THB', symbol: '฿' },
+    exchangeRate: 1,
     hoursPerDay: 7,
     taxEnabled: false,
     taxPercentage: 7,
@@ -95,7 +96,8 @@ export default function ProjectWorkspace() {
     startDate: new Date(),
     executionDays: 0,
     guaranteePeriod: 8,
-    finalDays: 0
+    finalDays: 0,
+    status: 'ACTIVE' as 'ACTIVE' | 'DRAFT' | 'COMPLETED' | 'CANCELLED'
   })
 
   const [assignments, setAssignments] = useState<ProjectAssignment[]>([])
@@ -104,6 +106,7 @@ export default function ProjectWorkspace() {
   const [, setLoading] = useState(false)
   const [showAddTeamMember, setShowAddTeamMember] = useState(false)
   const [selectedTeamMember, setSelectedTeamMember] = useState<TeamMember | null>(null)
+  const [showStatusEdit, setShowStatusEdit] = useState(false)
 
   const fetchProject = useCallback(async () => {
     try {
@@ -115,6 +118,7 @@ export default function ProjectWorkspace() {
           name: projectData.name,
           client: projectData.client || '',
           currency: { code: projectData.currency_code, symbol: projectData.currency_symbol },
+          exchangeRate: 1, // Default exchange rate
           hoursPerDay: projectData.hours_per_day,
           taxEnabled: projectData.tax_enabled,
           taxPercentage: projectData.tax_percentage,
@@ -122,7 +126,8 @@ export default function ProjectWorkspace() {
           startDate: projectData.start_date ? new Date(projectData.start_date) : new Date(),
           executionDays: projectData.execution_days || 0,
           guaranteePeriod: projectData.guarantee_days || 8,
-          finalDays: (projectData.execution_days || 0) + (projectData.guarantee_days || 8)
+          finalDays: (projectData.execution_days || 0) + (projectData.guarantee_days || 8),
+          status: projectData.status || 'ACTIVE'
         })
       } else {
         console.error('Failed to fetch project:', response.statusText)
@@ -205,6 +210,72 @@ export default function ProjectWorkspace() {
   }
 
   const projectDates = calculateProjectDates()
+
+  // Check if project end date has passed and update status automatically
+  useEffect(() => {
+    const checkProjectStatus = () => {
+      const today = new Date()
+      const endDate = projectDates.projectEndDate
+      
+      if (project.status !== 'COMPLETED' && project.status !== 'CANCELLED' && today > endDate) {
+        setProject(prev => ({ ...prev, status: 'COMPLETED' }))
+        // Update status in database
+        updateProjectStatus('COMPLETED')
+      }
+    }
+    
+    checkProjectStatus()
+  }, [projectDates.projectEndDate, project.status])
+
+  const updateProjectStatus = async (newStatus: 'ACTIVE' | 'DRAFT' | 'COMPLETED' | 'CANCELLED') => {
+    try {
+      const response = await fetch(`/api/projects/${projectId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+      })
+
+      if (response.ok) {
+        toast.success(`Project status updated to ${newStatus.toLowerCase()}`)
+      } else {
+        console.error('Failed to update project status:', response.statusText)
+        toast.error('Failed to update project status')
+      }
+    } catch (error) {
+      console.error('Error updating project status:', error)
+      toast.error('Failed to update project status')
+    }
+  }
+
+  const getStatusBadgeVariant = (status: string) => {
+    switch (status) {
+      case 'ACTIVE':
+        return 'default' // Will be styled as green
+      case 'DRAFT':
+        return 'secondary'
+      case 'COMPLETED':
+        return 'default' // Will be styled as blue
+      case 'CANCELLED':
+        return 'destructive'
+      default:
+        return 'secondary'
+    }
+  }
+
+  const getStatusDisplayText = (status: string) => {
+    switch (status) {
+      case 'ACTIVE':
+        return 'ongoing'
+      case 'DRAFT':
+        return 'draft'
+      case 'COMPLETED':
+        return 'finished'
+      case 'CANCELLED':
+        return 'cancelled'
+      default:
+        return status.toLowerCase()
+    }
+  }
 
   const summary = useMemo((): ProjectSummary => {
     const subtotal = assignments.reduce((sum, assignment) => sum + (assignment.dailyRate * assignment.daysAllocated), 0)
@@ -380,7 +451,7 @@ export default function ProjectWorkspace() {
         buffer_days: 0, // Default value
         guarantee_days: project.guaranteePeriod,
         start_date: project.startDate?.toISOString().split('T')[0],
-        status: 'ACTIVE'
+        status: project.status
       }
 
       const response = await fetch('/api/projects', {
@@ -468,11 +539,95 @@ export default function ProjectWorkspace() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Project Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-900">{project.name}</h1>
-          <p className="text-slate-600 mt-2">Client: {project.client}</p>
-          <p className="text-slate-500 text-sm mt-1">
-            {format(project.startDate, 'dd MMM yyyy')} - {format(projectDates.projectEndDate, 'dd MMM yyyy')}
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-slate-900">{project.name}</h1>
+              <p className="text-slate-600 mt-2">Client: {project.client}</p>
+              <p className="text-slate-500 text-sm mt-1">
+                {format(project.startDate, 'dd MMM yyyy')} - {format(projectDates.projectEndDate, 'dd MMM yyyy')}
+              </p>
+            </div>
+            <div className="flex items-center space-x-3">
+              <Badge 
+                variant={getStatusBadgeVariant(project.status)}
+                className={`${
+                  project.status === 'ACTIVE' ? 'bg-green-600 hover:bg-green-700' :
+                  project.status === 'COMPLETED' ? 'bg-blue-600 hover:bg-blue-700' :
+                  project.status === 'DRAFT' ? 'bg-gray-600 hover:bg-gray-700' :
+                  'bg-red-600 hover:bg-red-700'
+                } text-white`}
+              >
+                {getStatusDisplayText(project.status)}
+              </Badge>
+              <Dialog open={showStatusEdit} onOpenChange={setShowStatusEdit}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Edit className="h-4 w-4 mr-2" />
+                    Edit Status
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Update Project Status</DialogTitle>
+                    <DialogDescription>
+                      Change the current status of this project
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <Label>Current Status</Label>
+                      <div className="mt-2">
+                        <Badge 
+                          variant={getStatusBadgeVariant(project.status)}
+                          className={`${
+                            project.status === 'ACTIVE' ? 'bg-green-600' :
+                            project.status === 'COMPLETED' ? 'bg-blue-600' :
+                            project.status === 'DRAFT' ? 'bg-gray-600' :
+                            'bg-red-600'
+                          } text-white`}
+                        >
+                          {getStatusDisplayText(project.status)}
+                        </Badge>
+                      </div>
+                    </div>
+                    <div>
+                      <Label>New Status</Label>
+                      <Select
+                        value={project.status}
+                        onValueChange={(value: 'ACTIVE' | 'DRAFT' | 'COMPLETED' | 'CANCELLED') => {
+                          setProject(prev => ({ ...prev, status: value }))
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="ACTIVE">Ongoing (Green)</SelectItem>
+                          <SelectItem value="DRAFT">Draft (Gray)</SelectItem>
+                          <SelectItem value="COMPLETED">Finished (Blue)</SelectItem>
+                          <SelectItem value="CANCELLED">Cancelled (Red)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setShowStatusEdit(false)}>
+                      Cancel
+                    </Button>
+                    <Button 
+                      onClick={() => {
+                        updateProjectStatus(project.status)
+                        setShowStatusEdit(false)
+                      }}
+                    >
+                      <Check className="h-4 w-4 mr-2" />
+                      Update Status
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
+          </div>
         </div>
 
         {/* Summary Cards */}

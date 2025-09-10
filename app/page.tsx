@@ -48,7 +48,9 @@ export default function Dashboard() {
   const stats = {
     totalProjects: projects.length,
     activeProjects: projects.filter(p => p.status === 'ACTIVE').length,
-    totalRevenue: projects.reduce((sum, p) => sum + (p.proposed_price || 0), 0),
+    totalRevenue: projects
+      .filter(p => p.status !== 'DRAFT') // Exclude draft projects from revenue calculation
+      .reduce((sum, p) => sum + (p.proposed_price || 0), 0),
     avgROI: 0 // We'll calculate this when we have cost data
   }
 
@@ -158,8 +160,25 @@ export default function Dashboard() {
                     <div className="flex-1">
                       <div className="flex items-center space-x-3">
                         <h3 className="font-semibold text-slate-900">{project.name}</h3>
-                        <Badge variant={project.status === 'ACTIVE' ? 'default' : 'secondary'}>
-                          {project.status.toLowerCase()}
+                        <Badge 
+                          variant={
+                            project.status === 'ACTIVE' ? 'default' :
+                            project.status === 'COMPLETED' ? 'default' :
+                            project.status === 'CANCELLED' ? 'destructive' :
+                            'secondary'
+                          }
+                          className={`${
+                            project.status === 'ACTIVE' ? 'bg-green-600 hover:bg-green-700' :
+                            project.status === 'COMPLETED' ? 'bg-blue-600 hover:bg-blue-700' :
+                            project.status === 'DRAFT' ? 'bg-gray-600 hover:bg-gray-700' :
+                            'bg-red-600 hover:bg-red-700'
+                          } text-white`}
+                        >
+                          {project.status === 'ACTIVE' ? 'ongoing' :
+                           project.status === 'COMPLETED' ? 'finished' :
+                           project.status === 'DRAFT' ? 'draft' :
+                           project.status === 'CANCELLED' ? 'cancelled' :
+                           project.status.toLowerCase()}
                         </Badge>
                       </div>
                       <p className="text-sm text-slate-600 mt-1">{project.client || 'No client specified'}</p>
