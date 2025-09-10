@@ -2,13 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getThaiHolidays } from '@/lib/data/thai-holidays'
 
 // Available public holidays API sources
-const HOLIDAY_APIS = {
-  // MyHora API for Thai holidays (primary source)
-  myHora: 'https://www.myhora.com/calendar/ical/holiday.aspx?latest.json',
-  
-  // Local Thai holidays data (fallback)
-  thaiLocal: 'local'
-}
+// const HOLIDAY_APIS = {
+//   // MyHora API for Thai holidays (primary source)
+//   myHora: 'https://www.myhora.com/calendar/ical/holiday.aspx?latest.json',
+//   
+//   // Local Thai holidays data (fallback)
+//   thaiLocal: 'local'
+// }
 
 
 interface HolidayData {
@@ -261,12 +261,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Insert holidays into database with proper transformation
-    const holidaysToInsert = data.holidays.map((holiday: any) => ({
-      name: holiday.name,
-      date: holiday.date,
-      treatment: holiday.treatment || mapTypeToTreatment(holiday.type || 'public'),
-      multiplier: holiday.multiplier || 1.0,
-      is_custom: holiday.is_custom || false,
+    const holidaysToInsert = data.holidays.map((holiday: Record<string, unknown>) => ({
+      name: holiday.name as string,
+      date: holiday.date as string,
+      treatment: (holiday.treatment as string) || mapTypeToTreatment((holiday.type as string) || 'public'),
+      multiplier: (holiday.multiplier as number) || 1.0,
+      is_custom: (holiday.is_custom as boolean) || false,
       project_id: projectId ? parseInt(projectId) : null
     }))
 

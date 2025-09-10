@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { Calendar, Download, Upload, RefreshCw, Plus, Trash2 } from 'lucide-react'
+import { Calendar, Download, RefreshCw, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface Holiday {

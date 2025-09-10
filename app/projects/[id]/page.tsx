@@ -327,21 +327,38 @@ export default function ProjectWorkspace() {
 
   const handleSaveProject = async () => {
     try {
+      // Transform project data to match API schema
+      const projectData = {
+        name: project.name,
+        client: project.client,
+        currency_code: project.currency.code,
+        currency_symbol: project.currency.symbol,
+        hours_per_day: project.hoursPerDay,
+        tax_enabled: project.taxEnabled,
+        tax_percentage: project.taxPercentage,
+        proposed_price: project.proposedPrice,
+        working_week: 'MON_TO_FRI', // Default value
+        execution_days: project.executionDays,
+        buffer_days: 0, // Default value
+        guarantee_days: project.guaranteePeriod,
+        start_date: project.startDate?.toISOString().split('T')[0],
+        status: 'ACTIVE'
+      }
+
       const response = await fetch('/api/projects', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          project,
-          assignments,
-          holidays: holidays.filter(h => h.type === 'company')
-        })
+        body: JSON.stringify(projectData)
       })
 
       if (response.ok) {
+        await response.json() // Project saved successfully
         toast.success('Project saved successfully')
         router.push('/')
       } else {
-        toast.error('Failed to save project')
+        const errorData = await response.json()
+        console.error('Save project error:', errorData)
+        toast.error(`Failed to save project: ${errorData.error || 'Unknown error'}`)
       }
     } catch (error) {
       console.error('Error saving project:', error)
@@ -351,20 +368,36 @@ export default function ProjectWorkspace() {
 
   const handleSaveDraft = async () => {
     try {
+      // Transform project data to match API schema
+      const projectData = {
+        name: project.name,
+        client: project.client,
+        currency_code: project.currency.code,
+        currency_symbol: project.currency.symbol,
+        hours_per_day: project.hoursPerDay,
+        tax_enabled: project.taxEnabled,
+        tax_percentage: project.taxPercentage,
+        proposed_price: project.proposedPrice,
+        working_week: 'MON_TO_FRI', // Default value
+        execution_days: project.executionDays,
+        buffer_days: 0, // Default value
+        guarantee_days: project.guaranteePeriod,
+        start_date: project.startDate?.toISOString().split('T')[0],
+        status: 'DRAFT'
+      }
+
       const response = await fetch('/api/projects/draft', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          project,
-          assignments,
-          holidays: holidays.filter(h => h.type === 'company')
-        })
+        body: JSON.stringify(projectData)
       })
 
       if (response.ok) {
         toast.success('Draft saved successfully')
       } else {
-        toast.error('Failed to save draft')
+        const errorData = await response.json()
+        console.error('Save draft error:', errorData)
+        toast.error(`Failed to save draft: ${errorData.error || 'Unknown error'}`)
       }
     } catch (error) {
       console.error('Error saving draft:', error)

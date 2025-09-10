@@ -178,7 +178,6 @@ export async function DELETE(
     }
     
     // Check if role is referenced by team members or rate cards
-    let references, referencesError;
     try {
       const teamMembersResult = await supabaseAdmin()
         .from('team_members')
