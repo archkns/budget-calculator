@@ -65,8 +65,11 @@ CREATE TABLE IF NOT EXISTS project_assignments (
   custom_tier VARCHAR(20) CHECK (custom_tier IN ('TEAM_LEAD', 'SENIOR', 'JUNIOR')),
   daily_rate DECIMAL(10,2) NOT NULL,
   days_allocated INTEGER DEFAULT 0,
-  utilization_percentage INTEGER DEFAULT 100,
-  ignore_holidays BOOLEAN DEFAULT false,
+  buffer_days INTEGER DEFAULT 0,
+  total_mandays INTEGER DEFAULT 0,
+  total_price DECIMAL(15,2) DEFAULT 0,
+  start_date DATE,
+  end_date DATE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

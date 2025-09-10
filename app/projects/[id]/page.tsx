@@ -37,17 +37,32 @@ interface TeamMember {
 
 interface ProjectAssignment {
   id: number
-  teamMemberId: number
-  name: string
-  role: string
-  tier: string
-  dailyRate: number
-  daysAllocated: number
-  bufferDays: number
-  totalMandays: number
-  totalPrice: number
-  startDate: Date
-  endDate: Date
+  project_id: number
+  team_member_id?: number
+  custom_name?: string
+  custom_role?: string
+  custom_tier?: 'TEAM_LEAD' | 'SENIOR' | 'JUNIOR'
+  daily_rate: number
+  days_allocated: number
+  buffer_days: number
+  total_mandays: number
+  total_price: number
+  start_date?: string
+  end_date?: string
+  created_at: string
+  updated_at: string
+  // Team member data from join
+  team_members?: {
+    id: number
+    name: string
+    custom_role?: string
+    tier?: string
+    default_rate_per_day: number
+    roles?: {
+      id: number
+      name: string
+    }
+  }
 }
 
 interface Holiday {
@@ -171,12 +186,29 @@ export default function ProjectWorkspace() {
     }
   }, [project.id])
 
-  // Fetch project data, team library and holidays on load
+  const fetchAssignments = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/projects/${projectId}/assignments`)
+      if (response.ok) {
+        const data = await response.json()
+        setAssignments(data)
+      } else {
+        console.error('Failed to fetch assignments:', response.statusText)
+        toast.error('Failed to load team assignments')
+      }
+    } catch (error) {
+      console.error('Error fetching assignments:', error)
+      toast.error('Failed to load team assignments')
+    }
+  }, [projectId])
+
+  // Fetch project data, team library, assignments and holidays on load
   useEffect(() => {
     fetchProject()
     fetchTeamLibrary()
+    fetchAssignments()
     fetchHolidays()
-  }, [fetchHolidays, projectId, fetchProject])
+  }, [fetchHolidays, fetchAssignments, projectId, fetchProject])
 
   const calculateWorkdays = (startDate: Date, days: number, holidays: Holiday[]): Date => {
     let currentDate = new Date(startDate)
@@ -197,7 +229,7 @@ export default function ProjectWorkspace() {
   }
 
   const calculateProjectDates = () => {
-    const totalExecutionDays = Math.max(...assignments.map(a => a.daysAllocated), 0)
+    const totalExecutionDays = Math.max(...assignments.map(a => a.days_allocated), 0)
     const executionEndDate = calculateWorkdays(project.startDate, totalExecutionDays, holidays)
     const projectEndDate = calculateWorkdays(executionEndDate, project.guaranteePeriod, holidays)
     
@@ -278,7 +310,7 @@ export default function ProjectWorkspace() {
   }
 
   const summary = useMemo((): ProjectSummary => {
-    const subtotal = assignments.reduce((sum, assignment) => sum + (assignment.dailyRate * assignment.daysAllocated), 0)
+    const subtotal = assignments.reduce((sum, assignment) => sum + assignment.total_price, 0)
     const additionalCost = 98700 // Fixed additional cost
     const cost = subtotal + additionalCost
     const proposedPrice = project.proposedPrice
@@ -297,52 +329,101 @@ export default function ProjectWorkspace() {
     return `${percentage.toFixed(2)}%`
   }, [])
 
-  const handleAddTeamMember = (teamMember: TeamMember) => {
-    const newAssignment: ProjectAssignment = {
-      id: assignments.length + 1,
-      teamMemberId: teamMember.id,
-      name: teamMember.name,
-      role: teamMember.roles?.name || teamMember.custom_role || 'No role',
-      tier: teamMember.tier || 'No tier',
-      dailyRate: teamMember.default_rate_per_day,
-      daysAllocated: 0,
-      bufferDays: 0,
-      totalMandays: 0,
-      totalPrice: 0,
-      startDate: project.startDate,
-      endDate: project.startDate
-    }
-    
-    setAssignments(prev => [...prev, newAssignment])
-    setShowAddTeamMember(false)
-    setSelectedTeamMember(null)
-  }
-
-  const updateAssignment = (id: number, field: string, value: string | number) => {
-    setAssignments(prev => prev.map(assignment => {
-      if (assignment.id === id) {
-        const updated = { ...assignment, [field]: value }
-        
-        // Recalculate total mandays and total price
-        if (['daysAllocated', 'bufferDays'].includes(field)) {
-          updated.totalMandays = updated.daysAllocated + updated.bufferDays
-          updated.totalPrice = updated.dailyRate * updated.totalMandays
-          
-          // Update dates
-          const executionEnd = calculateWorkdays(updated.startDate, updated.daysAllocated, holidays)
-          updated.endDate = calculateWorkdays(executionEnd, updated.bufferDays, holidays)
-        } else if (field === 'dailyRate') {
-          updated.totalPrice = updated.dailyRate * updated.totalMandays
-        }
-        
-        return updated
+  const handleAddTeamMember = async (teamMember: TeamMember) => {
+    try {
+      const assignmentData = {
+        team_member_id: teamMember.id,
+        custom_name: teamMember.name,
+        custom_role: teamMember.roles?.name || teamMember.custom_role || 'No role',
+        custom_tier: teamMember.tier || 'JUNIOR',
+        daily_rate: teamMember.default_rate_per_day,
+        days_allocated: 0,
+        buffer_days: 0,
+        start_date: project.startDate?.toISOString().split('T')[0],
+        end_date: project.startDate?.toISOString().split('T')[0]
       }
-      return assignment
-    }))
+
+      const response = await fetch(`/api/projects/${projectId}/assignments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(assignmentData)
+      })
+
+      if (response.ok) {
+        const newAssignment = await response.json()
+        setAssignments(prev => [...prev, newAssignment])
+        toast.success('Team member added successfully')
+      } else {
+        const errorData = await response.json()
+        console.error('Failed to add team member:', errorData)
+        toast.error(`Failed to add team member: ${errorData.error || 'Unknown error'}`)
+      }
+    } catch (error) {
+      console.error('Error adding team member:', error)
+      toast.error('Failed to add team member')
+    } finally {
+      setShowAddTeamMember(false)
+      setSelectedTeamMember(null)
+    }
   }
 
-  const handleDeleteAssignment = (id: number) => {
-    setAssignments(prev => prev.filter(assignment => assignment.id !== id))
+  const updateAssignment = async (id: number, field: string, value: string | number) => {
+    try {
+      // Map frontend field names to database field names
+      const dbFieldMap: { [key: string]: string } = {
+        'dailyRate': 'dailyRate',
+        'daysAllocated': 'daysAllocated',
+        'bufferDays': 'bufferDays'
+      }
+
+      const dbField = dbFieldMap[field] || field
+      const updateData = { [dbField]: value }
+
+      const response = await fetch(`/api/projects/${projectId}/assignments/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updateData)
+      })
+
+      if (response.ok) {
+        const updatedAssignment = await response.json()
+        
+        // Update local state with the response from database
+        setAssignments(prev => prev.map(assignment => {
+          if (assignment.id === id) {
+            return updatedAssignment
+          }
+          return assignment
+        }))
+      } else {
+        const errorData = await response.json()
+        console.error('Failed to update assignment:', errorData)
+        toast.error(`Failed to update assignment: ${errorData.error || 'Unknown error'}`)
+      }
+    } catch (error) {
+      console.error('Error updating assignment:', error)
+      toast.error('Failed to update assignment')
+    }
+  }
+
+  const handleDeleteAssignment = async (id: number) => {
+    try {
+      const response = await fetch(`/api/projects/${projectId}/assignments/${id}`, {
+        method: 'DELETE'
+      })
+
+      if (response.ok) {
+        setAssignments(prev => prev.filter(assignment => assignment.id !== id))
+        toast.success('Team member removed successfully')
+      } else {
+        const errorData = await response.json()
+        console.error('Failed to delete assignment:', errorData)
+        toast.error(`Failed to remove team member: ${errorData.error || 'Unknown error'}`)
+      }
+    } catch (error) {
+      console.error('Error deleting assignment:', error)
+      toast.error('Failed to remove team member')
+    }
   }
 
   // Generate Gantt tasks (memoized)
@@ -350,13 +431,18 @@ export default function ProjectWorkspace() {
     const tasks: GanttTask[] = []
     
     assignments.forEach(assignment => {
+      // Use start_date from database if available, otherwise fall back to project start date
+      const startDate = assignment.start_date ? new Date(assignment.start_date) : project.startDate
+      const name = assignment.custom_name || assignment.team_members?.name || 'Unknown'
+      const role = assignment.custom_role || assignment.team_members?.roles?.name || assignment.team_members?.custom_role || 'No role'
+      
       // Execution phase
-      const executionEnd = calculateWorkdays(assignment.startDate, assignment.daysAllocated, holidays)
+      const executionEnd = calculateWorkdays(startDate, assignment.days_allocated, holidays)
       tasks.push({
         id: assignment.id * 2 - 1,
-        name: assignment.name,
-        role: assignment.role,
-        startDate: assignment.startDate,
+        name: name,
+        role: role,
+        startDate: startDate,
         endDate: executionEnd,
         type: 'execution',
         color: '#3b82f6', // Blue
@@ -364,12 +450,12 @@ export default function ProjectWorkspace() {
       })
       
       // Buffer phase
-      if (assignment.bufferDays > 0) {
-        const bufferEnd = calculateWorkdays(executionEnd, assignment.bufferDays, holidays)
+      if (assignment.buffer_days > 0) {
+        const bufferEnd = calculateWorkdays(executionEnd, assignment.buffer_days, holidays)
         tasks.push({
           id: assignment.id * 2,
-          name: assignment.name,
-          role: assignment.role,
+          name: name,
+          role: role,
           startDate: executionEnd,
           endDate: bufferEnd,
           type: 'buffer',
@@ -380,58 +466,80 @@ export default function ProjectWorkspace() {
     })
     
     return tasks
-  }, [assignments, holidays])
+  }, [assignments, holidays, project.startDate])
 
-  const handleTaskUpdate = (taskId: number, startDate: Date, endDate: Date) => {
+  const handleTaskUpdate = async (taskId: number, startDate: Date, endDate: Date) => {
     const assigneeId = Math.ceil(taskId / 2)
     const isBuffer = taskId % 2 === 0
     
-    setAssignments(prev => prev.map(assignment => {
-      if (assignment.id === assigneeId) {
-        const updated = { ...assignment }
-        
-        if (isBuffer) {
-          // Update buffer phase
-          const newBufferDays = differenceInDays(endDate, startDate) + 1
-          updated.bufferDays = newBufferDays
-          updated.totalMandays = updated.daysAllocated + newBufferDays
-          updated.totalPrice = updated.dailyRate * updated.totalMandays
-        } else {
-          // Update execution phase
-          updated.startDate = startDate
-          const newExecutionDays = differenceInDays(endDate, startDate) + 1
-          updated.daysAllocated = newExecutionDays
-          updated.totalMandays = newExecutionDays + updated.bufferDays
-          updated.totalPrice = updated.dailyRate * updated.totalMandays
+    const assignment = assignments.find(a => a.id === assigneeId)
+    if (!assignment) return
+
+    try {
+      let updateData: any = {}
+      
+      if (isBuffer) {
+        // Update buffer phase
+        const newBufferDays = differenceInDays(endDate, startDate) + 1
+        updateData = { bufferDays: newBufferDays }
+      } else {
+        // Update execution phase
+        const newExecutionDays = differenceInDays(endDate, startDate) + 1
+        updateData = { 
+          daysAllocated: newExecutionDays,
+          startDate: startDate.toISOString().split('T')[0]
         }
-        
-        return updated
       }
-      return assignment
-    }))
+
+      const response = await fetch(`/api/projects/${projectId}/assignments/${assigneeId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updateData)
+      })
+
+      if (response.ok) {
+        const updatedAssignment = await response.json()
+        setAssignments(prev => prev.map(assignment => {
+          if (assignment.id === assigneeId) {
+            return updatedAssignment
+          }
+          return assignment
+        }))
+      }
+    } catch (error) {
+      console.error('Error updating task:', error)
+      toast.error('Failed to update task')
+    }
   }
 
-  const handleTaskResize = (taskId: number, newDuration: number) => {
+  const handleTaskResize = async (taskId: number, newDuration: number) => {
     const assigneeId = Math.ceil(taskId / 2)
     const isBuffer = taskId % 2 === 0
     
-    setAssignments(prev => prev.map(assignment => {
-      if (assignment.id === assigneeId) {
-        const updated = { ...assignment }
-        
-        if (isBuffer) {
-          updated.bufferDays = newDuration
-        } else {
-          updated.daysAllocated = newDuration
-        }
-        
-        updated.totalMandays = updated.daysAllocated + updated.bufferDays
-        updated.totalPrice = updated.dailyRate * updated.totalMandays
-        
-        return updated
+    try {
+      const updateData = isBuffer 
+        ? { bufferDays: newDuration }
+        : { daysAllocated: newDuration }
+
+      const response = await fetch(`/api/projects/${projectId}/assignments/${assigneeId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updateData)
+      })
+
+      if (response.ok) {
+        const updatedAssignment = await response.json()
+        setAssignments(prev => prev.map(assignment => {
+          if (assignment.id === assigneeId) {
+            return updatedAssignment
+          }
+          return assignment
+        }))
       }
-      return assignment
-    }))
+    } catch (error) {
+      console.error('Error resizing task:', error)
+      toast.error('Failed to resize task')
+    }
   }
 
   const handleSaveProject = async () => {
@@ -860,17 +968,17 @@ export default function ProjectWorkspace() {
                   <TableBody>
                     {assignments.map((assignment) => (
                       <TableRow key={assignment.id}>
-                        <TableCell className="font-medium">{assignment.name}</TableCell>
-                        <TableCell>{assignment.role}</TableCell>
+                        <TableCell className="font-medium">{assignment.custom_name || assignment.team_members?.name || 'Unknown'}</TableCell>
+                        <TableCell>{assignment.custom_role || assignment.team_members?.roles?.name || assignment.team_members?.custom_role || 'No role'}</TableCell>
                         <TableCell>
                           <Badge variant="outline" className="text-xs">
-                            {assignment.tier}
+                            {assignment.custom_tier || assignment.team_members?.tier || 'No tier'}
                           </Badge>
                         </TableCell>
                         <TableCell>
                           <Input
                             type="number"
-                            value={assignment.dailyRate}
+                            value={assignment.daily_rate}
                             onChange={(e) => updateAssignment(assignment.id, 'dailyRate', parseFloat(e.target.value))}
                             className="w-24"
                           />
@@ -878,7 +986,7 @@ export default function ProjectWorkspace() {
                         <TableCell>
                           <Input
                             type="number"
-                            value={assignment.daysAllocated}
+                            value={assignment.days_allocated}
                             onChange={(e) => updateAssignment(assignment.id, 'daysAllocated', parseFloat(e.target.value))}
                             className="w-20"
                           />
@@ -886,17 +994,17 @@ export default function ProjectWorkspace() {
                         <TableCell>
                           <Input
                             type="number"
-                            value={assignment.bufferDays}
+                            value={assignment.buffer_days}
                             onChange={(e) => updateAssignment(assignment.id, 'bufferDays', parseFloat(e.target.value))}
                             className="w-20"
                             min="0"
                           />
                         </TableCell>
                         <TableCell className="font-mono">
-                          {assignment.totalMandays}
+                          {assignment.total_mandays}
                         </TableCell>
                         <TableCell className="font-mono">
-                          {formatCurrency(assignment.totalPrice)}
+                          {formatCurrency(assignment.total_price)}
                         </TableCell>
                         <TableCell>
                           <Button 

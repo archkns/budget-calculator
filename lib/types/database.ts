@@ -60,8 +60,11 @@ export interface ProjectAssignment {
   custom_tier: 'TEAM_LEAD' | 'SENIOR' | 'JUNIOR' | null
   daily_rate: number
   days_allocated: number
-  utilization_percentage: number
-  ignore_holidays: boolean
+  buffer_days: number
+  total_mandays: number
+  total_price: number
+  start_date: string | null
+  end_date: string | null
   created_at: string
   updated_at: string
 }
