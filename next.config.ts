@@ -16,10 +16,6 @@ const nextConfig: NextConfig = {
     formats: ['image/webp', 'image/avif'],
   },
   
-  // PostCSS configuration for Tailwind CSS
-  postcss: {
-    plugins: ["@tailwindcss/postcss"],
-  },
   
   // Bundle analyzer (uncomment for analysis)
   // webpack: (config, { isServer }) => {
