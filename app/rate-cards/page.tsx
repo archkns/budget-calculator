@@ -169,6 +169,58 @@ export default function RateCards() {
           </div>
         </div>
 
+        {/* Summary Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Roles</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{Object.keys(groupedRates).length}</div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Active Rate Cards</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{rateCards.filter(c => c.is_active).length}</div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Average Rate</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {(() => {
+                  const activeRates = rateCards.filter(c => c.is_active)
+                  if (activeRates.length === 0) return formatCurrency(0)
+                  const average = activeRates.reduce((sum, c) => sum + c.daily_rate, 0) / activeRates.length
+                  return formatCurrency(Math.round(average))
+                })()}
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Highest Rate</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {(() => {
+                  const activeRates = rateCards.filter(c => c.is_active).map(c => c.daily_rate)
+                  if (activeRates.length === 0) return formatCurrency(0)
+                  return formatCurrency(Math.max(...activeRates))
+                })()}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         {/* Rate Cards Grid */}
         {loading ? (
           <div className="text-center py-8">Loading...</div>
@@ -266,56 +318,6 @@ export default function RateCards() {
             ))}
           </div>
         )}
-
-        {/* Summary Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mt-8">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Roles</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{Object.keys(groupedRates).length}</div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active Rate Cards</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{rateCards.filter(c => c.is_active).length}</div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Avg Team Lead Rate</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {formatCurrency(
-                  Math.round(
-                    rateCards
-                      .filter(c => c.tier === 'TEAM_LEAD' && c.is_active)
-                      .reduce((sum, c) => sum + c.daily_rate, 0) /
-                    rateCards.filter(c => c.tier === 'TEAM_LEAD' && c.is_active).length
-                  )
-                )}
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Highest Rate</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {formatCurrency(Math.max(...rateCards.filter(c => c.is_active).map(c => c.daily_rate)))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
       </main>
     </div>
   )
