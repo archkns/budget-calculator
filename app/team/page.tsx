@@ -13,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { Plus, Search, Upload, Download, Edit, Trash2, Calculator } from 'lucide-react'
 import Link from 'next/link'
+import { formatTier } from '@/lib/utils'
 
 interface TeamMember {
   id: number
@@ -82,10 +83,6 @@ export default function TeamLibrary() {
     return `฿${amount.toLocaleString()}`
   }
 
-  const formatTier = (tier?: string) => {
-    if (!tier) return 'N/A'
-    return tier.replace('_', ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())
-  }
 
   return (
     <div className="min-h-screen bg-slate-50">

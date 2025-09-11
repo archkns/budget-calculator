@@ -18,8 +18,8 @@ import { Calculator, Plus, Trash2, FileText, TrendingUp, TrendingDown, CalendarI
 import { format, addDays, isWeekend, differenceInDays } from 'date-fns'
 import { toast } from 'sonner'
 import { RealtimeCurrencyConverter } from "@/components/ui/realtime-currency-converter"
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { formatTier } from '@/lib/utils'
 
 interface TeamMember {
   id: number
@@ -94,7 +94,6 @@ interface GanttTask {
 }
 
 export default function ProjectWorkspace() {
-  const router = useRouter()
   const params = useParams()
   const projectId = params.id as string
   
@@ -108,6 +107,7 @@ export default function ProjectWorkspace() {
     taxEnabled: false,
     taxPercentage: 7,
     proposedPrice: 0,
+    totalPrice: 0,
     startDate: new Date(),
     executionDays: 0,
     guaranteePeriod: 8,
@@ -138,6 +138,7 @@ export default function ProjectWorkspace() {
           taxEnabled: projectData.tax_enabled,
           taxPercentage: projectData.tax_percentage,
           proposedPrice: projectData.proposed_price || 0,
+          totalPrice: projectData.total_price || 0,
           startDate: projectData.start_date ? new Date(projectData.start_date) : new Date(),
           executionDays: projectData.execution_days || 0,
           guaranteePeriod: projectData.guarantee_days || 8,
@@ -312,14 +313,15 @@ export default function ProjectWorkspace() {
   const summary = useMemo((): ProjectSummary => {
     const subtotal = assignments.reduce((sum, assignment) => sum + assignment.total_price, 0)
     const additionalCost = 98700 // Fixed additional cost
-    const cost = subtotal + additionalCost
+    // Use database-calculated total_price if available, otherwise calculate manually
+    const cost = project.totalPrice || (subtotal + additionalCost)
     const proposedPrice = project.proposedPrice
     
     const roi = cost > 0 ? ((proposedPrice - cost) / cost) * 100 : 0
     const margin = proposedPrice > 0 ? ((proposedPrice - cost) / proposedPrice) * 100 : 0
 
     return { subtotal, additionalCost, cost, proposedPrice, roi, margin }
-  }, [assignments, project.proposedPrice])
+  }, [assignments, project.proposedPrice, project.totalPrice])
 
   const formatCurrency = useCallback((amount: number) => {
     return `${project.currency.symbol}${amount.toLocaleString()}`
@@ -567,24 +569,37 @@ export default function ProjectWorkspace() {
         status: project.status
       }
 
-      const response = await fetch('/api/projects', {
-        method: 'POST',
+      const response = await fetch(`/api/projects/${projectId}`, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(projectData)
       })
 
       if (response.ok) {
-        await response.json() // Project saved successfully
-        toast.success('Project saved successfully')
-        router.push('/')
+        const updatedProject = await response.json()
+        // Update local state with the updated project data
+        setProject(prev => ({
+          ...prev,
+          ...updatedProject,
+          currency: { code: updatedProject.currency_code, symbol: updatedProject.currency_symbol },
+          hoursPerDay: updatedProject.hours_per_day,
+          taxEnabled: updatedProject.tax_enabled,
+          taxPercentage: updatedProject.tax_percentage,
+          proposedPrice: updatedProject.proposed_price,
+          executionDays: updatedProject.execution_days,
+          guaranteePeriod: updatedProject.guarantee_days,
+          startDate: updatedProject.start_date ? new Date(updatedProject.start_date) : prev.startDate,
+          status: updatedProject.status
+        }))
+        toast.success('Project updated successfully')
       } else {
         const errorData = await response.json()
-        console.error('Save project error:', errorData)
-        toast.error(`Failed to save project: ${errorData.error || 'Unknown error'}`)
+        console.error('Update project error:', errorData)
+        toast.error(`Failed to update project: ${errorData.error || 'Unknown error'}`)
       }
     } catch (error) {
-      console.error('Error saving project:', error)
-      toast.error('Failed to save project')
+      console.error('Error updating project:', error)
+      toast.error('Failed to update project')
     }
   }
 
@@ -608,13 +623,28 @@ export default function ProjectWorkspace() {
         status: 'DRAFT'
       }
 
-      const response = await fetch('/api/projects/draft', {
-        method: 'POST',
+      const response = await fetch(`/api/projects/${projectId}`, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(projectData)
       })
 
       if (response.ok) {
+        const updatedProject = await response.json()
+        // Update local state with the updated project data
+        setProject(prev => ({
+          ...prev,
+          ...updatedProject,
+          currency: { code: updatedProject.currency_code, symbol: updatedProject.currency_symbol },
+          hoursPerDay: updatedProject.hours_per_day,
+          taxEnabled: updatedProject.tax_enabled,
+          taxPercentage: updatedProject.tax_percentage,
+          proposedPrice: updatedProject.proposed_price,
+          executionDays: updatedProject.execution_days,
+          guaranteePeriod: updatedProject.guarantee_days,
+          startDate: updatedProject.start_date ? new Date(updatedProject.start_date) : prev.startDate,
+          status: updatedProject.status
+        }))
         toast.success('Draft saved successfully')
       } else {
         const errorData = await response.json()
@@ -977,7 +1007,7 @@ export default function ProjectWorkspace() {
                         <TableCell>{assignment.custom_role || assignment.team_members?.roles?.name || assignment.team_members?.custom_role || 'No role'}</TableCell>
                         <TableCell>
                           <Badge variant="outline" className="text-xs">
-                            {assignment.custom_tier || assignment.team_members?.tier || 'No tier'}
+                            {formatTier(assignment.custom_tier || assignment.team_members?.tier)}
                           </Badge>
                         </TableCell>
                         <TableCell>

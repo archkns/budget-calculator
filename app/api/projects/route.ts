@@ -84,7 +84,12 @@ export async function POST(request: NextRequest) {
         tax_enabled: projectData.tax_enabled || false,
         tax_percentage: projectData.tax_percentage || 7,
         proposed_price: projectData.proposed_price || null,
+        total_price: projectData.total_price || 0,
         working_week: projectData.working_week || 'MON_TO_FRI',
+        execution_days: projectData.execution_days || 0,
+        buffer_days: projectData.buffer_days || 0,
+        guarantee_days: projectData.guarantee_days || 8,
+        start_date: projectData.start_date || null,
         status: projectData.status || 'ACTIVE',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
@@ -102,7 +107,12 @@ export async function POST(request: NextRequest) {
       tax_enabled: projectData.tax_enabled || false,
       tax_percentage: projectData.tax_percentage || 7,
       proposed_price: projectData.proposed_price || null,
+      total_price: projectData.total_price || 0, // Will be calculated by triggers
       working_week: projectData.working_week || 'MON_TO_FRI',
+      execution_days: projectData.execution_days || 0,
+      buffer_days: projectData.buffer_days || 0,
+      guarantee_days: projectData.guarantee_days || 8,
+      start_date: projectData.start_date || null,
       status: projectData.status || 'ACTIVE'
     }
     

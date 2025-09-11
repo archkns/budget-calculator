@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Calculator, Edit, X, Check } from 'lucide-react'
 import Link from 'next/link'
+import { formatTier } from '@/lib/utils'
 
 interface RateCard {
   id: number
@@ -55,9 +56,6 @@ export default function RateCards() {
     return `฿${amount.toLocaleString()}`
   }
 
-  const formatTier = (tier: string) => {
-    return tier.replace('_', ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase())
-  }
 
   const startEditing = (cardId: number, currentRate: number) => {
     setEditingCard(cardId)

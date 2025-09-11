@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Plus, Calculator, Users, FileText, Settings } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
+import { formatCurrency } from '@/lib/utils'
 
 interface Project {
   id: number
@@ -14,6 +15,9 @@ interface Project {
   client: string | null
   status: string
   proposed_price: number | null
+  total_price: number
+  start_date: string | null
+  end_date: string | null
   created_at: string
   updated_at: string
 }
@@ -111,7 +115,7 @@ export default function Dashboard() {
               <Calculator className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">฿{stats.totalRevenue.toLocaleString()}</div>
+              <div className="text-2xl font-bold">{formatCurrency(stats.totalRevenue)}</div>
             </CardContent>
           </Card>
           
@@ -189,9 +193,27 @@ export default function Dashboard() {
                     
                     <div className="flex items-center space-x-6 text-right">
                       <div>
+                        <p className="text-sm font-medium text-slate-900">Start Date</p>
+                        <p className="text-sm text-slate-600">
+                          {project.start_date ? new Date(project.start_date).toLocaleDateString() : 'Not set'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-slate-900">End Date</p>
+                        <p className="text-sm text-slate-600">
+                          {project.end_date ? new Date(project.end_date).toLocaleDateString() : 'Not set'}
+                        </p>
+                      </div>
+                      <div>
                         <p className="text-sm font-medium text-slate-900">Proposed</p>
                         <p className="text-sm text-slate-600">
-                          ฿{(project.proposed_price || 0).toLocaleString()}
+                          {formatCurrency(project.proposed_price || 0)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-slate-900">Total Cost</p>
+                        <p className="text-sm text-slate-600">
+                          {formatCurrency(project.total_price || 0)}
                         </p>
                       </div>
                       <Link href={`/projects/${project.id}`}>

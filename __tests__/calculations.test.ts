@@ -13,14 +13,15 @@ import Decimal from 'decimal.js';
 
 describe('Calculation Functions', () => {
   describe('calculateAssignmentCost', () => {
-    it('should calculate row cost correctly for billable assignment', () => {
+    it('should calculate row cost correctly for assignment', () => {
       const assignment: ProjectAssignment = {
         id: 1,
         project_id: 1,
         daily_rate: 15000,
         days_allocated: 10,
-        utilization_percentage: 100,
-        ignore_holidays: false
+        buffer_days: 0,
+        total_mandays: 10,
+        total_price: 150000
       };
 
       const result = calculateAssignmentCost(assignment);
@@ -28,35 +29,38 @@ describe('Calculation Functions', () => {
       expect(result.rowCost.toNumber()).toBe(150000);
     });
 
-    it('should return zero cost for non-billable assignment', () => {
+    it('should calculate cost with buffer days', () => {
       const assignment: ProjectAssignment = {
         id: 1,
         project_id: 1,
         daily_rate: 15000,
         days_allocated: 10,
-        utilization_percentage: 100,
-        ignore_holidays: false
+        buffer_days: 2,
+        total_mandays: 12,
+        total_price: 180000
       };
 
       const result = calculateAssignmentCost(assignment);
       
-      expect(result.rowCost.toNumber()).toBe(150000);
+      // 15000 * (10 + 2) = 180000
+      expect(result.rowCost.toNumber()).toBe(180000);
     });
 
-    it('should apply utilization correctly', () => {
+    it('should calculate cost correctly with different rates', () => {
       const assignment: ProjectAssignment = {
         id: 1,
         project_id: 1,
         daily_rate: 20000,
         days_allocated: 5,
-        utilization_percentage: 80,
-        ignore_holidays: false
+        buffer_days: 1,
+        total_mandays: 6,
+        total_price: 120000
       };
 
       const result = calculateAssignmentCost(assignment);
       
-      // 20000 * 5 * 0.8 = 80000
-      expect(result.rowCost.toNumber()).toBe(80000);
+      // 20000 * (5 + 1) = 120000
+      expect(result.rowCost.toNumber()).toBe(120000);
     });
   });
 
@@ -71,7 +75,9 @@ describe('Calculation Functions', () => {
       tax_percentage: 7,
       proposed_price: 300000,
       execution_days: 30,
-      buffer_days: 5
+      buffer_days: 5,
+      calendar_mode: false,
+      working_week: 'MON_TO_FRI'
     };
 
     const mockAssignments: ProjectAssignment[] = [
@@ -80,16 +86,18 @@ describe('Calculation Functions', () => {
         project_id: 1,
         daily_rate: 15000,
         days_allocated: 10,
-        utilization_percentage: 100,
-        ignore_holidays: false
+        buffer_days: 0,
+        total_mandays: 10,
+        total_price: 150000
       },
       {
         id: 2,
         project_id: 1,
         daily_rate: 20000,
         days_allocated: 5,
-        utilization_percentage: 100,
-        ignore_holidays: false
+        buffer_days: 0,
+        total_mandays: 5,
+        total_price: 100000
       }
     ];
 

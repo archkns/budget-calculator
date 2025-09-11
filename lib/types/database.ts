@@ -39,6 +39,7 @@ export interface Project {
   tax_enabled: boolean
   tax_percentage: number
   proposed_price: number | null
+  total_price: number
   working_week: string
   execution_days: number
   buffer_days: number
@@ -97,7 +98,12 @@ export interface CreateProjectData {
   tax_enabled?: boolean
   tax_percentage?: number
   proposed_price?: number
+  total_price?: number
   working_week?: string
+  execution_days?: number
+  buffer_days?: number
+  guarantee_days?: number
+  start_date?: string
   status?: 'ACTIVE' | 'DRAFT' | 'COMPLETED' | 'CANCELLED'
 }
 

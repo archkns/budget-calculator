@@ -17,7 +17,8 @@ export interface AssignmentCost {
   assignmentId: number;
   dailyRate: Decimal;
   daysAllocated: Decimal;
-  utilization: Decimal;
+  bufferDays: Decimal;
+  totalMandays: Decimal;
   rowCost: Decimal;
 }
 
@@ -27,15 +28,17 @@ export interface AssignmentCost {
 export function calculateAssignmentCost(assignment: ProjectAssignment): AssignmentCost {
   const dailyRate = new Decimal(assignment.daily_rate);
   const daysAllocated = new Decimal(assignment.days_allocated);
-  const utilization = new Decimal(assignment.utilization_percentage).div(100);
+  const bufferDays = new Decimal(assignment.buffer_days || 0);
+  const totalMandays = daysAllocated.add(bufferDays);
   
-  const rowCost = dailyRate.mul(daysAllocated).mul(utilization);
+  const rowCost = dailyRate.mul(totalMandays);
 
   return {
     assignmentId: assignment.id!,
     dailyRate,
     daysAllocated,
-    utilization,
+    bufferDays,
+    totalMandays,
     rowCost,
   };
 }
@@ -169,17 +172,3 @@ export function sanitizeCSVCell(cell: string): string {
   return cell;
 }
 
-/**
- * Calculate utilization percentage for a team member across projects
- */
-export function calculateUtilization(
-  assignments: ProjectAssignment[],
-  totalAvailableDays: number
-): number {
-  const totalAllocatedDays = assignments.reduce((sum, assignment) => {
-    return sum + assignment.days_allocated * (assignment.utilization_percentage / 100);
-  }, 0);
-  
-  if (totalAvailableDays === 0) return 0;
-  return Math.min(100, (totalAllocatedDays / totalAvailableDays) * 100);
-}

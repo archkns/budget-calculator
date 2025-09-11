@@ -30,6 +30,7 @@ export async function GET(
         tax_enabled: false,
         tax_percentage: 7,
         proposed_price: 3000000,
+        total_price: 2500000,
         working_week: 'MON_TO_FRI',
         execution_days: 45,
         buffer_days: 0,
