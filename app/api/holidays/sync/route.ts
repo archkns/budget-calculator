@@ -40,17 +40,18 @@ export async function POST(request: NextRequest) {
 
     try {
       switch (source) {
+        case 'iapp':
+          holidays = await fetchIAppThaiHolidays(year)
+          break
         case 'thaiLocal':
           holidays = await fetchLocalThaiHolidays(year)
           break
         case 'external':
           holidays = await fetchExternalHolidays(year)
           break
-        case 'iapp':
-          holidays = await fetchIAppThaiHolidays(year)
-          break
         default:
-          holidays = await fetchLocalThaiHolidays(year)
+          // Default to iApp API as first priority
+          holidays = await fetchIAppThaiHolidays(year)
       }
     } catch (fetchError) {
       console.error(`Error fetching holidays from ${source}:`, fetchError)
@@ -154,8 +155,8 @@ export async function GET(request: NextRequest) {
       year,
       status: stats,
       availableSources: [
-        { id: 'thaiLocal', name: 'Thai Local Holidays', description: 'Local Thai holiday data (recommended)' },
-        { id: 'iapp', name: 'iApp Thai Holiday API', description: 'Official Thai holiday data from iApp Technology' },
+        { id: 'iapp', name: 'iApp Thai Holiday API', description: 'Official Thai holiday data from iApp Technology (recommended)' },
+        { id: 'thaiLocal', name: 'Thai Local Holidays', description: 'Local Thai holiday data (fallback)' },
         { id: 'external', name: 'MyHora API', description: 'External MyHora API (may be blocked by anti-bot protection)' }
       ],
       existingHolidays
@@ -294,14 +295,19 @@ async function fetchIAppThaiHolidays(year: string): Promise<HolidayData[]> {
       throw new Error('Thai Holiday API key not configured. Please set THAI_HOLIDAY_API_KEY environment variable.')
     }
 
-    console.log(`Fetching holidays from iApp Thai Holiday API for year ${year}`)
+    console.log(`Fetching holidays from iApp Thai Holiday API for year ${year} (2 years ahead)`)
     
-    // Calculate days from start of year to end of year
-    const startDate = new Date(`${year}-01-01`)
-    const endDate = new Date(`${year}-12-31`)
-    const daysAfter = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
+    // Calculate days from today to 2 years ahead
+    const today = new Date()
+    const endDate = new Date(`${parseInt(year) + 2}-12-31`)
+    const daysAfter = Math.ceil((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
     
-    const response = await fetch(`https://api.iapp.co.th/data/thai-holidays/holidays?holiday_type=public&days_after=${daysAfter}`, {
+    console.log(`Fetching holidays from today for ${daysAfter} days (until end of ${parseInt(year) + 2})`)
+    
+    const allHolidays: HolidayData[] = []
+    
+    // Fetch public holidays (financial holidays API seems to have issues)
+    const publicResponse = await fetch(`https://api.iapp.co.th/data/thai-holidays/holidays?holiday_type=public&days_after=${daysAfter}`, {
       headers: {
         'apikey': apiKey,
         'Accept': 'application/json',
@@ -309,25 +315,25 @@ async function fetchIAppThaiHolidays(year: string): Promise<HolidayData[]> {
       }
     })
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
+    // Check public holidays response
+    if (!publicResponse.ok) {
+      throw new Error(`HTTP error for public holidays! status: ${publicResponse.status}`)
     }
 
-    const data = await response.json()
-    console.log('iApp API response structure:', Object.keys(data))
+    const publicData = await publicResponse.json()
+    console.log(`iApp API response: ${publicData.holidays?.length || 0} public holidays found`)
 
-    // Parse iApp API response
-    const holidays: HolidayData[] = []
-    
-    if (data.holidays && Array.isArray(data.holidays)) {
-      for (const holiday of data.holidays) {
-        // Filter holidays for the requested year
-        if (holiday.date && holiday.date.startsWith(year)) {
-          holidays.push({
-            id: `iapp-${holiday.date}`,
+    // Process public holidays
+    if (publicData.holidays && Array.isArray(publicData.holidays)) {
+      for (const holiday of publicData.holidays) {
+        // Filter holidays for the requested year and next 2 years
+        const holidayYear = parseInt(holiday.date.substring(0, 4))
+        if (holidayYear >= parseInt(year) && holidayYear <= parseInt(year) + 2) {
+          allHolidays.push({
+            id: `iapp-public-${holiday.date}`,
             name: holiday.name || 'Thai Holiday',
             date: holiday.date,
-            type: holiday.type || 'public',
+            type: 'public',
             notes: holiday.weekday ? `Day: ${holiday.weekday}` : '',
             country: 'TH'
           })
@@ -335,8 +341,45 @@ async function fetchIAppThaiHolidays(year: string): Promise<HolidayData[]> {
       }
     }
 
-    console.log(`Found ${holidays.length} holidays from iApp API for year ${year}`)
-    return holidays
+    // Try to fetch financial holidays (but don't fail if it doesn't work)
+    try {
+      const financialResponse = await fetch(`https://api.iapp.co.th/data/thai-holidays/holidays?holiday_type=financial&days_after=${daysAfter}`, {
+        headers: {
+          'apikey': apiKey,
+          'Accept': 'application/json',
+          'User-Agent': 'Budget-Calculator/1.0'
+        }
+      })
+
+      if (financialResponse.ok) {
+        const financialData = await financialResponse.json()
+        console.log(`iApp API financial response: ${financialData.holidays?.length || 0} financial holidays found`)
+
+        // Process financial holidays
+        if (financialData.holidays && Array.isArray(financialData.holidays)) {
+          for (const holiday of financialData.holidays) {
+            const holidayYear = parseInt(holiday.date.substring(0, 4))
+            if (holidayYear >= parseInt(year) && holidayYear <= parseInt(year) + 2) {
+              allHolidays.push({
+                id: `iapp-financial-${holiday.date}`,
+                name: holiday.name || 'Thai Financial Holiday',
+                date: holiday.date,
+                type: 'financial',
+                notes: holiday.weekday ? `Day: ${holiday.weekday} (Financial)` : 'Financial Holiday',
+                country: 'TH'
+              })
+            }
+          }
+        }
+      } else {
+        console.warn(`Financial holidays API returned status: ${financialResponse.status}`)
+      }
+    } catch (financialError) {
+      console.warn('Failed to fetch financial holidays:', financialError)
+    }
+
+    console.log(`Found ${allHolidays.length} holidays from iApp API for years ${year}-${parseInt(year) + 2} (public + financial)`)
+    return allHolidays
 
   } catch (error) {
     console.error('Error fetching holidays from iApp API:', error)
