@@ -797,8 +797,50 @@ export default function ProjectWorkspace() {
               <span className="text-slate-600">{project.name}</span>
             </div>
             <div className="flex items-center space-x-3">
-              <Button variant="outline" onClick={handleSaveDraft}>Save Draft</Button>
-              <Button onClick={handleSaveProject}>Save Project</Button>
+              <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+                <DialogTrigger asChild>
+                  <Button variant="destructive">
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center text-red-600">
+                      <AlertTriangle className="h-5 w-5 mr-2" />
+                      Delete Project
+                    </DialogTitle>
+                    <DialogDescription>
+                      Are you sure you want to delete this project? This action cannot be undone and will permanently remove:
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="py-4">
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                      <ul className="text-sm text-red-800 space-y-1">
+                        <li>• Project: <strong>{project.name}</strong></li>
+                        <li>• Client: <strong>{project.client}</strong></li>
+                        <li>• All team assignments and data</li>
+                        <li>• All project calculations and settings</li>
+                        <li>• All associated holidays and timeline data</li>
+                      </ul>
+                    </div>
+                    <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <p className="text-sm text-yellow-800 font-medium">
+                        ⚠️ This action cannot be reverted. Please make sure you want to permanently delete this project.
+                      </p>
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setShowDeleteConfirm(false)}>
+                      Cancel
+                    </Button>
+                    <Button variant="destructive" onClick={handleDeleteProject}>
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete Project
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
               <Dialog open={showDuplicateDialog} onOpenChange={setShowDuplicateDialog}>
                 <DialogTrigger asChild>
                   <Button variant="outline">
@@ -894,50 +936,11 @@ export default function ProjectWorkspace() {
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
-              <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-                <DialogTrigger asChild>
-                  <Button variant="destructive">
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete Project
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle className="flex items-center text-red-600">
-                      <AlertTriangle className="h-5 w-5 mr-2" />
-                      Delete Project
-                    </DialogTitle>
-                    <DialogDescription>
-                      Are you sure you want to delete this project? This action cannot be undone and will permanently remove:
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="py-4">
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                      <ul className="text-sm text-red-800 space-y-1">
-                        <li>• Project: <strong>{project.name}</strong></li>
-                        <li>• Client: <strong>{project.client}</strong></li>
-                        <li>• All team assignments and data</li>
-                        <li>• All project calculations and settings</li>
-                        <li>• All associated holidays and timeline data</li>
-                      </ul>
-                    </div>
-                    <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                      <p className="text-sm text-yellow-800 font-medium">
-                        ⚠️ This action cannot be reverted. Please make sure you want to permanently delete this project.
-                      </p>
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setShowDeleteConfirm(false)}>
-                      Cancel
-                    </Button>
-                    <Button variant="destructive" onClick={handleDeleteProject}>
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Delete Project
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+              <Button variant="outline" onClick={handleSaveDraft}>Save Draft</Button>
+              <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleSaveProject}>
+                <Check className="h-4 w-4 mr-2" />
+                Save
+              </Button>
             </div>
           </div>
         </div>
@@ -1390,15 +1393,6 @@ export default function ProjectWorkspace() {
               </CardContent>
             </Card>
 
-            {/* Save Buttons */}
-            <div className="flex items-center justify-end space-x-3 pt-6">
-              <Button variant="outline" onClick={handleSaveDraft}>
-                Save Draft
-              </Button>
-              <Button onClick={handleSaveProject}>
-                Save Project
-              </Button>
-            </div>
           </TabsContent>
 
           <TabsContent value="gantt" className="space-y-6">
