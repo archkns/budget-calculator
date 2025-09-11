@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { isSupabaseConfigured } from '@/lib/supabase'
-import { PublicHolidaySchema } from '@/lib/schemas'
+// import { PublicHolidaySchema } from '@/lib/schemas' // Temporarily disabled for debugging
 import { holidayService } from '@/lib/db/holidays'
 
 export const runtime = 'nodejs'
@@ -474,12 +474,15 @@ async function performAutoSync(): Promise<{ success: boolean; count: number; err
       })
     }
 
+    console.log(`Found ${holidaysToInsert.length} financial holidays from iApp API for next 365 days`)
+    
     // Sync holidays to database
-    const syncResult = await holidayService.syncHolidays(holidaysToInsert, true)
+    const currentYear = new Date().getFullYear()
+    const syncResult = await holidayService.syncHolidays(holidaysToInsert, currentYear, true)
     
     return {
       success: true,
-      count: syncResult.count
+      count: syncResult.inserted
     }
 
   } catch (error) {

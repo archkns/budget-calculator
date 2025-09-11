@@ -117,6 +117,7 @@ export default function ProjectWorkspace() {
     proposedPrice: 0,
     totalPrice: 0,
     startDate: new Date(),
+    endDate: null as Date | null,
     executionDays: 0,
     guaranteePeriod: 30,
     finalDays: 0,
@@ -169,6 +170,7 @@ export default function ProjectWorkspace() {
           proposedPrice: projectData.proposed_price || 0,
           totalPrice: projectData.allocated_budget || 0,
           startDate: projectData.start_date ? new Date(projectData.start_date) : new Date(),
+          endDate: projectData.end_date ? new Date(projectData.end_date) : null,
           executionDays: projectData.execution_days || 0,
           guaranteePeriod: projectData.guarantee_days || 30,
           finalDays: (projectData.execution_days || 0) + (projectData.guarantee_days || 30),
@@ -739,6 +741,7 @@ export default function ProjectWorkspace() {
         buffer_days: 0, // Default value
         guarantee_days: project.guaranteePeriod,
         start_date: project.startDate?.toISOString().split('T')[0],
+        end_date: project.endDate?.toISOString().split('T')[0] || null,
         status: project.status
       }
 
@@ -762,6 +765,7 @@ export default function ProjectWorkspace() {
           executionDays: updatedProject.execution_days,
           guaranteePeriod: updatedProject.guarantee_days,
           startDate: updatedProject.start_date ? new Date(updatedProject.start_date) : prev.startDate,
+          endDate: updatedProject.end_date ? new Date(updatedProject.end_date) : prev.endDate,
           status: updatedProject.status
         }))
         toast.success('Project updated successfully')
@@ -817,6 +821,7 @@ export default function ProjectWorkspace() {
           executionDays: updatedProject.execution_days,
           guaranteePeriod: updatedProject.guarantee_days,
           startDate: updatedProject.start_date ? new Date(updatedProject.start_date) : prev.startDate,
+          endDate: updatedProject.end_date ? new Date(updatedProject.end_date) : prev.endDate,
           status: updatedProject.status
         }))
         toast.success('Draft saved successfully')
@@ -1267,24 +1272,46 @@ export default function ProjectWorkspace() {
                   <CardDescription>Set project timeline and dates</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div>
-                    <Label>Project Start Date</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" className="w-full justify-start text-left font-normal">
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {format(project.startDate, 'dd MMM yyyy')}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={project.startDate}
-                          onSelect={(date) => date && setProject(prev => ({ ...prev, startDate: date }))}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>Project Start Date</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" className="w-full justify-start text-left font-normal">
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {format(project.startDate, 'dd MMM yyyy')}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={project.startDate}
+                            onSelect={(date) => date && setProject(prev => ({ ...prev, startDate: date }))}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    
+                    <div>
+                      <Label>Project End Date</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" className="w-full justify-start text-left font-normal">
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {project.endDate ? format(project.endDate, 'dd MMM yyyy') : 'Select end date'}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={project.endDate || undefined}
+                            onSelect={(date) => setProject(prev => ({ ...prev, endDate: date || null }))}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
                   </div>
                   
                   <div className="grid grid-cols-2 gap-4">

@@ -81,6 +81,7 @@ export async function POST(request: NextRequest) {
       buffer_days: projectData.buffer_days || 0,
       guarantee_days: projectData.guarantee_days || 8,
       start_date: projectData.start_date || null,
+      end_date: projectData.end_date || null,
       status: projectData.status || 'ACTIVE'
     }
     

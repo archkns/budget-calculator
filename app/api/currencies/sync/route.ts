@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { currencyService } from '@/lib/db/currencies'
 
 export const runtime = 'nodejs'

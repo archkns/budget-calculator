@@ -104,6 +104,7 @@ export interface CreateProjectData {
   buffer_days?: number
   guarantee_days?: number
   start_date?: string
+  end_date?: string
   status?: 'ACTIVE' | 'DRAFT' | 'COMPLETED' | 'CANCELLED'
 }
 

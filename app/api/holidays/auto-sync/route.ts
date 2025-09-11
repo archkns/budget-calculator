@@ -159,7 +159,7 @@ async function performAutoSync(days: number = 365): Promise<{ success: boolean; 
     // The API seems to work best with smaller chunks (30-60 days)
     const chunkSize = 60 // 2 months at a time
     const totalDays = days
-    const allHolidays: any[] = []
+    const allHolidays: Array<{ date: string; name: string; is_custom: boolean }> = []
     const seenHolidays = new Set<string>() // To avoid duplicates
     
     // Try multiple chunks to get more data
