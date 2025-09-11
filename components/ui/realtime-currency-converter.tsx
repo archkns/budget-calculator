@@ -66,7 +66,7 @@ export const RealtimeCurrencyConverter = memo(function RealtimeCurrencyConverter
     setApiStatus('loading')
     
     try {
-      // Use our backend API which integrates with Open Exchange Rates
+      // Use our backend API which integrates with Exchange Rate API
       const response = await fetch(`/api/currency?base=${baseCurrency}`)
       
       if (!response.ok) {

@@ -91,20 +91,6 @@ export async function POST(
       )
     }
 
-    if (!body.role_id) {
-      return NextResponse.json(
-        { error: 'role_id is required' },
-        { status: 400 }
-      )
-    }
-
-    if (!body.level_id) {
-      return NextResponse.json(
-        { error: 'level_id is required' },
-        { status: 400 }
-      )
-    }
-
     if (!body.daily_rate) {
       return NextResponse.json(
         { error: 'Daily rate is required' },
@@ -115,11 +101,11 @@ export async function POST(
     const assignmentData = {
       project_id: projectId,
       team_member_id: body.team_member_id,
-      role_id: body.role_id,
-      level_id: body.level_id,
       daily_rate: parseFloat(body.daily_rate),
       days_allocated: 0,
       buffer_days: 0,
+      total_mandays: 0,
+      allocated_budget: 0,
       start_date: null,
       end_date: null,
     }
@@ -127,38 +113,14 @@ export async function POST(
     const { data: newAssignment, error } = await supabaseAdmin()
       .from('project_assignments')
       .insert(assignmentData)
-      .select(`
-        *,
-        team_members:team_member_id (
-          id,
-          name,
-          default_rate_per_day,
-          roles:role_id (
-            id,
-            name
-          ),
-          levels:level_id (
-            id,
-            name,
-            display_name
-          )
-        ),
-        roles:role_id (
-          id,
-          name
-        ),
-        levels:level_id (
-          id,
-          name,
-          display_name
-        )
-      `)
+      .select('*')
       .single()
 
     if (error) {
       console.error('Error creating project assignment:', error)
+      console.error('Assignment data:', assignmentData)
       return NextResponse.json(
-        { error: 'Failed to create project assignment' },
+        { error: 'Failed to create project assignment', details: error.message },
         { status: 500 }
       )
     }
