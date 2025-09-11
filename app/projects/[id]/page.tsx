@@ -449,9 +449,9 @@ export default function ProjectWorkspace() {
     try {
       // Map frontend field names to database field names
       const dbFieldMap: { [key: string]: string } = {
-        'dailyRate': 'dailyRate',
-        'daysAllocated': 'daysAllocated',
-        'bufferDays': 'bufferDays'
+        'dailyRate': 'daily_rate',
+        'daysAllocated': 'days_allocated',
+        'bufferDays': 'buffer_days'
       }
 
       const dbField = dbFieldMap[field] || field
@@ -555,23 +555,23 @@ export default function ProjectWorkspace() {
 
     try {
       let updateData: {
-        bufferDays?: number;
-        daysAllocated?: number;
-        startDate?: string;
-        endDate?: string;
+        buffer_days?: number;
+        days_allocated?: number;
+        start_date?: string;
+        end_date?: string;
       } = {}
       
       if (isBuffer) {
         // Update buffer phase
         const newBufferDays = differenceInDays(endDate, startDate) + 1
-        updateData = { bufferDays: newBufferDays }
+        updateData = { buffer_days: newBufferDays }
       } else {
         // Update execution phase
         const newExecutionDays = differenceInDays(endDate, startDate) + 1
         updateData = { 
-          daysAllocated: newExecutionDays,
-          startDate: startDate.toISOString().split('T')[0],
-          endDate: endDate.toISOString().split('T')[0]
+          days_allocated: newExecutionDays,
+          start_date: startDate.toISOString().split('T')[0],
+          end_date: endDate.toISOString().split('T')[0]
         }
       }
 
@@ -1053,7 +1053,7 @@ export default function ProjectWorkspace() {
           
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Cost</CardTitle>
+              <CardTitle className="text-sm font-medium">Allocated Budget</CardTitle>
               <FileText className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>

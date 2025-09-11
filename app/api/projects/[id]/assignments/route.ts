@@ -106,7 +106,25 @@ export async function POST(
     const { data: newAssignment, error } = await supabaseAdmin()
       .from('project_assignments')
       .insert(assignmentData)
-      .select('*')
+      .select(`
+        *,
+        team_members:team_member_id (
+          id,
+          name,
+          default_rate_per_day,
+          role_id,
+          level_id,
+          roles:role_id (
+            id,
+            name
+          ),
+          levels:level_id (
+            id,
+            name,
+            display_name
+          )
+        )
+      `)
       .single()
 
     if (error) {
