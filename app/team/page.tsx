@@ -126,7 +126,12 @@ export default function TeamLibrary() {
     }
   }, [])
 
-  const refreshTeamMembers = useCallback(async () => {
+  const refreshTeamMembers = useCallback(async (optimisticMember?: TeamMember) => {
+    // If we have an optimistic member, add it immediately for instant feedback
+    if (optimisticMember) {
+      setTeamMembers(prev => [...prev, optimisticMember])
+    }
+    
     try {
       const response = await fetch('/api/team')
       if (response.ok) {
@@ -134,9 +139,17 @@ export default function TeamLibrary() {
         setTeamMembers(data)
       } else {
         console.error('Failed to fetch team members:', response.statusText)
+        // If the API call failed and we added an optimistic member, remove it
+        if (optimisticMember) {
+          setTeamMembers(prev => prev.filter(member => member.id !== optimisticMember.id))
+        }
       }
     } catch (error) {
       console.error('Error fetching team members:', error)
+      // If the API call failed and we added an optimistic member, remove it
+      if (optimisticMember) {
+        setTeamMembers(prev => prev.filter(member => member.id !== optimisticMember.id))
+      }
     }
   }, [])
 
@@ -190,7 +203,10 @@ export default function TeamLibrary() {
                     Add a new team member to your library with their role and default rate.
                   </DialogDescription>
                 </DialogHeader>
-                <AddTeamMemberForm onClose={() => setIsAddDialogOpen(false)} />
+                <AddTeamMemberForm 
+                  onClose={() => setIsAddDialogOpen(false)} 
+                  onSuccess={refreshTeamMembers}
+                />
               </DialogContent>
             </Dialog>
             
@@ -358,7 +374,13 @@ export default function TeamLibrary() {
   )
 }
 
-const AddTeamMemberForm = memo(function AddTeamMemberForm({ onClose }: { onClose: () => void }) {
+const AddTeamMemberForm = memo(function AddTeamMemberForm({ 
+  onClose, 
+  onSuccess 
+}: { 
+  onClose: () => void
+  onSuccess: (optimisticMember?: TeamMember) => void
+}) {
   const [formData, setFormData] = useState({
     name: '',
     role_id: '',
@@ -464,6 +486,24 @@ const AddTeamMemberForm = memo(function AddTeamMemberForm({ onClose }: { onClose
     e.preventDefault()
     setLoading(true)
     
+    // Create optimistic team member for immediate UI feedback
+    const selectedRole = roles.find(role => role.id.toString() === formData.role_id)
+    const selectedLevel = levels.find(level => level.id.toString() === formData.level_id)
+    
+    const optimisticMember: TeamMember = {
+      id: Date.now(), // Temporary ID for optimistic update
+      name: formData.name,
+      default_rate_per_day: parseFloat(formData.defaultRate),
+      status: formData.status,
+      notes: formData.notes,
+      roles: selectedRole,
+      levels: selectedLevel
+    }
+    
+    // Add optimistic member immediately for instant feedback
+    onSuccess(optimisticMember)
+    onClose()
+    
     try {
       const response = await fetch('/api/team', {
         method: 'POST',
@@ -482,21 +522,23 @@ const AddTeamMemberForm = memo(function AddTeamMemberForm({ onClose }: { onClose
 
       if (response.ok) {
         toast.success('Team member added successfully')
-        // Refresh the page to show the new team member
-        window.location.reload()
+        // Refresh with the actual data from the server
+        onSuccess()
       } else {
         const errorData = await response.json()
         console.error('Failed to add team member:', errorData)
         toast.error(`Failed to add team member: ${errorData.error || response.statusText}`)
+        // The optimistic member will be removed by the refreshTeamMembers function
+        onSuccess()
       }
     } catch (error) {
       console.error('Error adding team member:', error)
       toast.error('Error adding team member. Please try again.')
+      // The optimistic member will be removed by the refreshTeamMembers function
+      onSuccess()
     } finally {
       setLoading(false)
     }
-    
-    onClose()
   }
 
   return (
