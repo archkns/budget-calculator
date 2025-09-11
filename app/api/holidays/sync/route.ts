@@ -52,7 +52,10 @@ export async function POST(request: NextRequest) {
     } catch (fetchError) {
       console.error(`Error fetching holidays from ${source}:`, fetchError)
       return NextResponse.json(
-        { error: `Failed to fetch holidays from ${source}` },
+        { 
+          error: `Failed to fetch holidays from ${source}`,
+          details: fetchError instanceof Error ? fetchError.message : 'Unknown error'
+        },
         { status: 500 }
       )
     }
@@ -148,8 +151,8 @@ export async function GET(request: NextRequest) {
       year,
       status: stats,
       availableSources: [
-        { id: 'thaiLocal', name: 'Thai Local Holidays', description: 'Local Thai holiday data' },
-        { id: 'external', name: 'External API', description: 'External holiday API (if available)' }
+        { id: 'thaiLocal', name: 'Thai Local Holidays', description: 'Local Thai holiday data (recommended)' },
+        { id: 'external', name: 'MyHora API', description: 'External MyHora API (may be blocked by anti-bot protection)' }
       ],
       existingHolidays
     })
@@ -187,19 +190,90 @@ async function fetchLocalThaiHolidays(year: string): Promise<HolidayData[]> {
 }
 
 /**
- * Fetch holidays from external API
- * This is a placeholder for external holiday APIs
+ * Fetch holidays from MyHora API
+ * MyHora provides comprehensive Thai holiday data in JSON format
  */
 async function fetchExternalHolidays(year: string): Promise<HolidayData[]> {
   try {
-    // This is a placeholder for external holiday APIs
-    // You can implement actual external API calls here
-    console.log(`Fetching external holidays for year ${year}`)
+    console.log(`Fetching holidays from MyHora API for year ${year}`)
     
-    // For now, return empty array as external API is not implemented
-    return []
+    const response = await fetch('https://www.myhora.com/calendar/ical/holiday.aspx?latest.json', {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'application/json, text/plain, */*',
+        'Accept-Language': 'en-US,en;q=0.9,th;q=0.8',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Referer': 'https://www.myhora.com/',
+        'Origin': 'https://www.myhora.com',
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache'
+      }
+    })
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+
+    const data = await response.json()
+    console.log('MyHora API response structure:', Object.keys(data))
+
+    // Parse MyHora JSON response
+    const holidays: HolidayData[] = []
+    
+    // MyHora returns data in iCal format with VCALENDAR array
+    if (data.VCALENDAR && Array.isArray(data.VCALENDAR)) {
+      for (const calendar of data.VCALENDAR) {
+        if (calendar.VEVENT && Array.isArray(calendar.VEVENT)) {
+          for (const event of calendar.VEVENT) {
+            // Extract date from DTSTART
+            const dateStr = event['DTSTART;VALUE=DATE'] || event.DTSTART
+            if (dateStr) {
+              // Convert from YYYYMMDD format to YYYY-MM-DD
+              const formattedDate = dateStr.replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3')
+              
+              // Check if the holiday is in the requested year
+              if (formattedDate.startsWith(year)) {
+                // Extract holiday name from SUMMARY or DESCRIPTION
+                let holidayName = event.SUMMARY || 'Thai Holiday'
+                
+                // If SUMMARY is not available, try to extract from DESCRIPTION
+                if (!event.SUMMARY && event.DESCRIPTION) {
+                  // DESCRIPTION often contains the holiday name in Thai
+                  const desc = event.DESCRIPTION
+                  // Try to extract the first line or meaningful part
+                  const lines = desc.split('\n')
+                  if (lines.length > 0) {
+                    holidayName = lines[0].trim()
+                  }
+                }
+                
+                holidays.push({
+                  id: `myhora-${event.UID || formattedDate}`,
+                  name: holidayName,
+                  date: formattedDate,
+                  type: 'public',
+                  notes: event.DESCRIPTION || '',
+                  country: 'TH'
+                })
+              }
+            }
+          }
+        }
+      }
+    }
+
+    console.log(`Found ${holidays.length} holidays from MyHora for year ${year}`)
+    return holidays
+
   } catch (error) {
-    console.error('Error fetching external holidays:', error)
-    throw new Error('Failed to fetch external holidays')
+    console.error('Error fetching external holidays from MyHora:', error)
+    console.error('Error details:', error instanceof Error ? error.message : 'Unknown error')
+    
+    // Provide helpful error message for common issues
+    if (error instanceof Error && error.message.includes('403')) {
+      throw new Error('MyHora API is blocking requests (403 Forbidden). This is likely due to anti-bot protection. Please use the local Thai holidays source instead.')
+    }
+    
+    throw new Error(`Failed to fetch external holidays from MyHora API: ${error instanceof Error ? error.message : 'Unknown error'}`)
   }
 }
