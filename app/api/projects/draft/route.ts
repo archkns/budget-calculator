@@ -47,7 +47,6 @@ export async function POST(request: NextRequest) {
       name: project.name,
       client: project.client || null,
       currency_code: project.currency_code || 'THB',
-      currency_symbol: project.currency_symbol || '฿',
       hours_per_day: project.hours_per_day || 7,
       tax_enabled: project.tax_enabled || false,
       tax_percentage: project.tax_percentage || 7,

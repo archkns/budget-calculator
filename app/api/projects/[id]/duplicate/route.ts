@@ -85,9 +85,7 @@ export async function POST(
       guarantee_days: originalProject.guarantee_days,
       start_date: startDate ? new Date(startDate) : null,
       end_date: endDate ? new Date(endDate) : null,
-      status: 'DRAFT', // Always start duplicated projects as drafts
-      // Remove template_id since we're duplicating from an actual project
-      template_id: null
+      status: 'DRAFT' // Always start duplicated projects as drafts
     }
 
     // Validate the duplicated project data
@@ -170,8 +168,13 @@ export async function POST(
 
   } catch (error) {
     console.error('Error duplicating project:', error)
+    console.error('Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      error
+    })
     return NextResponse.json(
-      { error: 'Failed to duplicate project' },
+      { error: 'Failed to duplicate project', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     )
   }

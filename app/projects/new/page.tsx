@@ -19,7 +19,6 @@ interface ProjectFormData {
   name: string
   client: string
   currency_code: string
-  currency_symbol: string
   hours_per_day: number
   tax_enabled: boolean
   tax_percentage: number
@@ -45,7 +44,6 @@ export default function NewProjectPage() {
     name: '',
     client: '',
     currency_code: 'THB',
-    currency_symbol: '฿',
     hours_per_day: 7,
     tax_enabled: false,
     tax_percentage: 7,
@@ -65,7 +63,6 @@ export default function NewProjectPage() {
       setFormData(prev => ({
         ...prev,
         currency_code: currency.code,
-        currency_symbol: currency.symbol
       }))
     }
   }

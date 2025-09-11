@@ -157,7 +157,7 @@ export default function ProjectWorkspace() {
           client: projectData.client || '',
           currency: { 
             code: projectData.currency_code || 'THB', 
-            symbol: projectData.currency_symbol || getCurrencySymbol(projectData.currency_code || 'THB')
+            symbol: getCurrencySymbol(projectData.currency_code || 'THB')
           },
           exchangeRate: 1, // Default exchange rate
           hoursPerDay: projectData.hours_per_day,
@@ -601,7 +601,6 @@ export default function ProjectWorkspace() {
         name: project.name,
         client: project.client,
         currency_code: project.currency.code,
-        currency_symbol: project.currency.symbol,
         hours_per_day: project.hoursPerDay,
         tax_enabled: project.taxEnabled,
         tax_percentage: project.taxPercentage,
@@ -626,7 +625,7 @@ export default function ProjectWorkspace() {
         setProject(prev => ({
           ...prev,
           ...updatedProject,
-          currency: { code: updatedProject.currency_code, symbol: updatedProject.currency_symbol },
+          currency: { code: updatedProject.currency_code, symbol: getCurrencySymbol(updatedProject.currency_code) },
           hoursPerDay: updatedProject.hours_per_day,
           taxEnabled: updatedProject.tax_enabled,
           taxPercentage: updatedProject.tax_percentage,
@@ -657,7 +656,6 @@ export default function ProjectWorkspace() {
         name: project.name,
         client: project.client,
         currency_code: project.currency.code,
-        currency_symbol: project.currency.symbol,
         hours_per_day: project.hoursPerDay,
         tax_enabled: project.taxEnabled,
         tax_percentage: project.taxPercentage,
@@ -682,7 +680,7 @@ export default function ProjectWorkspace() {
         setProject(prev => ({
           ...prev,
           ...updatedProject,
-          currency: { code: updatedProject.currency_code, symbol: updatedProject.currency_symbol },
+          currency: { code: updatedProject.currency_code, symbol: getCurrencySymbol(updatedProject.currency_code) },
           hoursPerDay: updatedProject.hours_per_day,
           taxEnabled: updatedProject.tax_enabled,
           taxPercentage: updatedProject.tax_percentage,

@@ -60,7 +60,6 @@ export interface Project {
   start_date: string | null
   end_date: string | null
   status: 'ACTIVE' | 'DRAFT' | 'COMPLETED' | 'CANCELLED'
-  template_id: number | null
   created_at: string
   updated_at: string
 }
