@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { isSupabaseConfigured } from '@/lib/supabase'
-// import { PublicHolidaySchema } from '@/lib/schemas' // Temporarily disabled for debugging
 import { holidayService } from '@/lib/db/holidays'
 
 export const runtime = 'nodejs'
