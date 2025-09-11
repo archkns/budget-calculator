@@ -219,45 +219,6 @@ export const RealtimeCurrencyConverter = memo(function RealtimeCurrencyConverter
     fetchExchangeRates(currentCurrency)
   }
 
-  // Sync with external API
-  const syncWithExternalAPI = async () => {
-    setIsLoadingRates(true)
-    setApiStatus('loading')
-    
-    try {
-      const response = await fetch('/api/currencies/sync', {
-        method: 'POST'
-      })
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-      
-      const data = await response.json()
-      
-      if (data.success && data.currencies) {
-        // Convert currencies array to rates object
-        const rates: Record<string, number> = {}
-        data.currencies.forEach((currency: { code: string; exchange_rate: number }) => {
-          rates[currency.code] = currency.exchange_rate
-        })
-        
-        setExchangeRates(rates)
-        setLastUpdated(new Date())
-        setApiStatus('online')
-        setRateSource('api')
-        toast.success('Exchange rates synced with external API')
-      } else {
-        throw new Error('Invalid API response')
-      }
-    } catch (error) {
-      console.warn('Failed to sync with external API:', error)
-      setApiStatus('offline')
-      toast.warning('Failed to sync with external API')
-    } finally {
-      setIsLoadingRates(false)
-    }
-  }
 
   const currentRate = useMemo(() => getCurrentRate(), [getCurrentRate])
   const rateDirection = useMemo(() => {
@@ -357,16 +318,6 @@ export const RealtimeCurrencyConverter = memo(function RealtimeCurrencyConverter
                 title="Refresh from database"
               >
                 <RefreshCw className={`h-3 w-3 ${isLoadingRates ? 'animate-spin' : ''}`} />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={syncWithExternalAPI}
-                disabled={isLoadingRates}
-                className="h-6 w-6 p-0"
-                title="Sync with external API"
-              >
-                <Wifi className="h-3 w-3" />
               </Button>
             </div>
           </div>
