@@ -75,8 +75,6 @@ export const ProjectAssignmentSchema = z.object({
   id: z.number().optional(),
   project_id: z.number(),
   team_member_id: z.number().optional(),
-  role_id: z.number().optional(),
-  level_id: z.number().optional(),
   daily_rate: z.number().positive('Daily rate must be positive'),
   days_allocated: z.number().min(0).default(0),
   buffer_days: z.number().min(0).default(0),

@@ -26,8 +26,6 @@ export async function PUT(
       buffer_days?: number;
       start_date?: string;
       end_date?: string;
-      role_id?: number;
-      level_id?: number;
     } = {}
     
     // Map frontend fields to database fields
@@ -36,8 +34,6 @@ export async function PUT(
     if (body.bufferDays !== undefined) updateData.buffer_days = parseInt(body.bufferDays)
     if (body.startDate !== undefined) updateData.start_date = body.startDate
     if (body.endDate !== undefined) updateData.end_date = body.endDate
-    if (body.roleId !== undefined) updateData.role_id = body.roleId
-    if (body.levelId !== undefined) updateData.level_id = body.levelId
 
     const { data: updatedAssignment, error } = await supabaseAdmin()
       .from('project_assignments')
@@ -62,15 +58,6 @@ export async function PUT(
             name,
             display_name
           )
-        ),
-        roles:role_id (
-          id,
-          name
-        ),
-        levels:level_id (
-          id,
-          name,
-          display_name
         )
       `)
       .single()

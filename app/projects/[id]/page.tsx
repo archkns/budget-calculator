@@ -47,8 +47,6 @@ interface ProjectAssignment {
   id: number
   project_id: number
   team_member_id?: number
-  role_id?: number
-  level_id?: number
   daily_rate: number
   days_allocated: number
   buffer_days: number
@@ -72,16 +70,6 @@ interface ProjectAssignment {
       name: string
       display_name: string
     }
-  }
-  // Direct role and level data
-  roles?: {
-    id: number
-    name: string
-  }
-  levels?: {
-    id: number
-    name: string
-    display_name: string
   }
 }
 
@@ -428,8 +416,6 @@ export default function ProjectWorkspace() {
     try {
       const assignmentData = {
         team_member_id: teamMember.id,
-        role_id: teamMember.role_id,
-        level_id: teamMember.level_id,
         daily_rate: teamMember.default_rate_per_day
       }
 
@@ -524,7 +510,7 @@ export default function ProjectWorkspace() {
       // Use start_date from database if available, otherwise fall back to project start date
       const startDate = assignment.start_date ? new Date(assignment.start_date) : project.startDate
       const name = assignment.team_members?.name || 'Unknown'
-      const role = assignment.roles?.name || assignment.team_members?.roles?.name || 'No role'
+      const role = assignment.team_members?.roles?.name || 'No role'
       
       // Execution phase
       const executionEnd = calculateWorkdays(startDate, assignment.days_allocated, holidays)
@@ -1292,10 +1278,10 @@ export default function ProjectWorkspace() {
                     {assignments.map((assignment) => (
                       <TableRow key={assignment.id}>
                         <TableCell className="font-medium">{assignment.team_members?.name || 'Unknown'}</TableCell>
-                        <TableCell>{assignment.roles?.name || assignment.team_members?.roles?.name || 'No role'}</TableCell>
+                        <TableCell>{assignment.team_members?.roles?.name || 'No role'}</TableCell>
                         <TableCell>
                           <Badge variant="outline" className="text-xs">
-                            {formatLevel(assignment.levels || assignment.team_members?.levels)}
+                            {formatLevel(assignment.team_members?.levels)}
                           </Badge>
                         </TableCell>
                         <TableCell>

@@ -19,11 +19,22 @@ BEGIN
 END $$;
 
 -- Remove template_id column from projects table first (before dropping the referenced table)
-ALTER TABLE projects DROP COLUMN IF EXISTS template_id;
+-- Only if the table exists
+DO $$ 
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'projects') THEN
+        ALTER TABLE projects DROP COLUMN IF EXISTS template_id;
+    END IF;
+END $$;
 
 -- Drop the template tables (only if they exist)
 DROP TABLE IF EXISTS template_assignments;
 DROP TABLE IF EXISTS project_templates;
 
--- Add comments to document the change
-COMMENT ON TABLE projects IS 'Projects table - template_id removed as we now use project duplication instead of templates';
+-- Add comments to document the change (only if table exists)
+DO $$ 
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'projects') THEN
+        COMMENT ON TABLE projects IS 'Projects table - template_id removed as we now use project duplication instead of templates';
+    END IF;
+END $$;

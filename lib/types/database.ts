@@ -69,8 +69,6 @@ export interface ProjectAssignment {
   id: number
   project_id: number
   team_member_id: number | null
-  role_id: number | null
-  level_id: number | null
   daily_rate: number
   days_allocated: number
   buffer_days: number

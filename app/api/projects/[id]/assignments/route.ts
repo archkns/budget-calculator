@@ -94,8 +94,6 @@ export async function POST(
     const assignmentData = {
       project_id: projectId,
       team_member_id: body.team_member_id,
-      role_id: body.role_id,
-      level_id: body.level_id,
       daily_rate: parseFloat(body.daily_rate),
       days_allocated: 0,
       buffer_days: 0,
