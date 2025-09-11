@@ -43,18 +43,25 @@ export async function POST(
       .from('project_assignments')
       .select(`
         *,
-        roles:role_id (
-          id,
-          name
-        ),
-        levels:level_id (
+        team_members:team_member_id (
           id,
           name,
-          display_name
+          default_rate_per_day,
+          role_id,
+          level_id,
+          roles:role_id (
+            id,
+            name
+          ),
+          levels:level_id (
+            id,
+            name,
+            display_name
+          )
         )
       `)
       .eq('project_id', projectId)
-      .order('sort_order', { ascending: true })
+      .order('created_at', { ascending: true })
 
     if (assignmentsError) {
       const { error, status } = handleSupabaseError(assignmentsError, 'fetching project assignments')
@@ -102,15 +109,14 @@ export async function POST(
     if (originalAssignments && originalAssignments.length > 0) {
       const duplicatedAssignments = originalAssignments.map(assignment => ({
         project_id: newProject.id,
-        team_member_id: null, // Reset team member assignment
-        role_id: assignment.role_id,
-        level_id: assignment.level_id,
+        team_member_id: assignment.team_member_id, // Keep the same team member
         daily_rate: assignment.daily_rate,
         days_allocated: assignment.days_allocated,
         buffer_days: assignment.buffer_days,
-        is_required: assignment.is_required,
-        sort_order: assignment.sort_order,
-        notes: assignment.notes
+        total_mandays: assignment.total_mandays,
+        allocated_budget: assignment.allocated_budget,
+        start_date: assignment.start_date,
+        end_date: assignment.end_date
       }))
 
       const { error: assignmentsCreateError } = await supabaseAdmin()
@@ -130,14 +136,21 @@ export async function POST(
         *,
         assignments:project_assignments (
           *,
-          roles:role_id (
-            id,
-            name
-          ),
-          levels:level_id (
+          team_members:team_member_id (
             id,
             name,
-            display_name
+            default_rate_per_day,
+            role_id,
+            level_id,
+            roles:role_id (
+              id,
+              name
+            ),
+            levels:level_id (
+              id,
+              name,
+              display_name
+            )
           )
         )
       `)
