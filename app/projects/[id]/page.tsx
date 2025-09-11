@@ -430,11 +430,7 @@ export default function ProjectWorkspace() {
         team_member_id: teamMember.id,
         role_id: teamMember.role_id,
         level_id: teamMember.level_id,
-        daily_rate: teamMember.default_rate_per_day,
-        days_allocated: 0,
-        buffer_days: 0,
-        start_date: project.startDate?.toISOString().split('T')[0],
-        end_date: project.startDate?.toISOString().split('T')[0]
+        daily_rate: teamMember.default_rate_per_day
       }
 
       const response = await fetch(`/api/projects/${projectId}/assignments`, {

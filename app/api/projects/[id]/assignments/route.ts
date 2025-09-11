@@ -91,6 +91,20 @@ export async function POST(
       )
     }
 
+    if (!body.role_id) {
+      return NextResponse.json(
+        { error: 'role_id is required' },
+        { status: 400 }
+      )
+    }
+
+    if (!body.level_id) {
+      return NextResponse.json(
+        { error: 'level_id is required' },
+        { status: 400 }
+      )
+    }
+
     if (!body.daily_rate) {
       return NextResponse.json(
         { error: 'Daily rate is required' },
@@ -98,17 +112,16 @@ export async function POST(
       )
     }
 
-
     const assignmentData = {
       project_id: projectId,
-      team_member_id: body.team_member_id || null,
-      role_id: body.role_id || null,
-      level_id: body.level_id || null,
+      team_member_id: body.team_member_id,
+      role_id: body.role_id,
+      level_id: body.level_id,
       daily_rate: parseFloat(body.daily_rate),
-      days_allocated: parseInt(body.days_allocated) || 0,
-      buffer_days: parseInt(body.buffer_days) || 0,
-      start_date: body.start_date || null,
-      end_date: body.end_date || null,
+      days_allocated: 0,
+      buffer_days: 0,
+      start_date: null,
+      end_date: null,
     }
 
     const { data: newAssignment, error } = await supabaseAdmin()

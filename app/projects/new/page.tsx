@@ -299,7 +299,7 @@ export default function NewProjectPage() {
                 disabled={isLoading || !formData.name.trim()}
               >
                 <Rocket className="h-4 w-4 mr-2" />
-                {isLoading ? 'Creating...' : 'Create Project'}
+                {isLoading ? 'Loading...' : 'Next'}
               </Button>
             </div>
           </div>

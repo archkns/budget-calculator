@@ -176,11 +176,7 @@ async function runComprehensiveTests() {
       team_member_id: 1, // Use existing team member
       role_id: 12, // Project Director
       level_id: 1, // Assuming level 1 exists
-      daily_rate: 2000,
-      days_allocated: 10,
-      buffer_days: 2,
-      total_mandays: 12,
-      allocated_budget: 24000
+      daily_rate: 2000
     });
     
     if (assignmentResult.success) {
