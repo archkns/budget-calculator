@@ -84,9 +84,9 @@ export async function POST(
     const body = await request.json()
     
     // Validate required fields
-    if (!body.team_member_id && !body.custom_name) {
+    if (!body.team_member_id) {
       return NextResponse.json(
-        { error: 'Either team_member_id or custom_name is required' },
+        { error: 'team_member_id is required' },
         { status: 400 }
       )
     }

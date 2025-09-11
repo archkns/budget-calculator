@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Plus, Calculator, Users, FileText, Settings, Edit, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
-import { formatCurrency, formatDate, getCurrencySymbol } from '@/lib/utils'
+import { formatCurrency, formatDate } from '@/lib/utils'
 
 interface Project {
   id: number

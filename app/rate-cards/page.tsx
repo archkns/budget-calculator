@@ -7,7 +7,6 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Calculator, Edit, X, Check } from 'lucide-react'
 import Link from 'next/link'
-import { formatLevel } from '@/lib/utils'
 
 interface RateCard {
   id: number

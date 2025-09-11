@@ -421,7 +421,6 @@ export default function ProjectWorkspace() {
       const assignmentData = {
         team_member_id: teamMember.id,
         role_id: teamMember.role_id,
-        custom_name: teamMember.name,
         level_id: teamMember.level_id,
         daily_rate: teamMember.default_rate_per_day,
         days_allocated: 0,
@@ -520,8 +519,8 @@ export default function ProjectWorkspace() {
     assignments.forEach(assignment => {
       // Use start_date from database if available, otherwise fall back to project start date
       const startDate = assignment.start_date ? new Date(assignment.start_date) : project.startDate
-      const name = assignment.custom_name || assignment.team_members?.name || 'Unknown'
-      const role = assignment.custom_role || assignment.team_members?.roles?.name || assignment.team_members?.custom_role || 'No role'
+      const name = assignment.team_members?.name || 'Unknown'
+      const role = assignment.team_members?.roles?.name || 'No role'
       
       // Execution phase
       const executionEnd = calculateWorkdays(startDate, assignment.days_allocated, holidays)
@@ -1285,8 +1284,8 @@ export default function ProjectWorkspace() {
                   <TableBody>
                     {assignments.map((assignment) => (
                       <TableRow key={assignment.id}>
-                        <TableCell className="font-medium">{assignment.custom_name || assignment.team_members?.name || 'Unknown'}</TableCell>
-                        <TableCell>{assignment.custom_role || assignment.team_members?.roles?.name || assignment.team_members?.custom_role || 'No role'}</TableCell>
+                        <TableCell className="font-medium">{assignment.team_members?.name || 'Unknown'}</TableCell>
+                        <TableCell>{assignment.team_members?.roles?.name || 'No role'}</TableCell>
                         <TableCell>
                           <Badge variant="outline" className="text-xs">
                             {formatLevel(assignment.levels || assignment.team_members?.levels)}

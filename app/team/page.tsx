@@ -68,14 +68,12 @@ export default function TeamLibrary() {
   useEffect(() => {
     const filtered = teamMembers.filter(member => {
       const matchesSearch = member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           (member.roles?.name?.toLowerCase().includes(searchTerm.toLowerCase())) ||
-                           (member.custom_role?.toLowerCase().includes(searchTerm.toLowerCase()))
+                           (member.roles?.name?.toLowerCase().includes(searchTerm.toLowerCase()))
       
       const matchesStatus = statusFilter === 'all' || member.status === statusFilter
       
       const matchesRole = roleFilter === 'all' || 
-                         member.roles?.name === roleFilter || 
-                         member.custom_role === roleFilter
+                         member.roles?.name === roleFilter
       
       return matchesSearch && matchesStatus && matchesRole
     })
@@ -215,10 +213,7 @@ export default function TeamLibrary() {
                     <TableRow key={member.id}>
                       <TableCell className="font-medium">{member.name}</TableCell>
                       <TableCell>
-                        {member.roles?.name || member.custom_role}
-                        {member.custom_role && (
-                          <Badge variant="outline" className="ml-2 text-xs">Custom</Badge>
-                        )}
+                        {member.roles?.name}
                       </TableCell>
                       <TableCell>{formatLevel(member.levels)}</TableCell>
                       <TableCell className="font-mono">{formatCurrency(member.default_rate_per_day)}</TableCell>
@@ -261,37 +256,71 @@ export default function TeamLibrary() {
 function AddTeamMemberForm({ onClose }: { onClose: () => void }) {
   const [formData, setFormData] = useState({
     name: '',
-    role: '',
-    customRole: '',
-    level: '',
+    role_id: '',
+    level_id: '',
     defaultRate: '',
     notes: '',
     status: 'ACTIVE'
   })
   const [roles, setRoles] = useState<Array<{id: number, name: string}>>([])
+  const [levels, setLevels] = useState<Array<{id: number, name: string, display_name: string}>>([])
   const [loading, setLoading] = useState(false)
   const [showNewRoleInput, setShowNewRoleInput] = useState(false)
   const [newRoleName, setNewRoleName] = useState('')
-  const [showNewLevelInput, setShowNewLevelInput] = useState(false)
-  const [newLevelName, setNewLevelName] = useState('')
+  const [rateLookupLoading, setRateLookupLoading] = useState(false)
 
-  // Fetch roles when component mounts
+  // Fetch roles and levels when component mounts
   useEffect(() => {
-    const fetchRoles = async () => {
+    const fetchData = async () => {
       try {
-        const response = await fetch('/api/roles')
-        if (response.ok) {
-          const data = await response.json()
-          setRoles(data)
+        // Fetch roles
+        const rolesResponse = await fetch('/api/roles')
+        if (rolesResponse.ok) {
+          const rolesData = await rolesResponse.json()
+          setRoles(rolesData)
         } else {
-          console.error('Failed to fetch roles:', response.statusText)
+          console.error('Failed to fetch roles:', rolesResponse.statusText)
+        }
+
+        // Fetch levels
+        const levelsResponse = await fetch('/api/levels')
+        if (levelsResponse.ok) {
+          const levelsData = await levelsResponse.json()
+          setLevels(levelsData)
+        } else {
+          console.error('Failed to fetch levels:', levelsResponse.statusText)
         }
       } catch (error) {
-        console.error('Error fetching roles:', error)
+        console.error('Error fetching data:', error)
       }
     }
-    fetchRoles()
+    fetchData()
   }, [])
+
+  // Function to lookup rate card when both role and level are selected
+  const lookupRateCard = async (roleId: string, levelId: string) => {
+    if (!roleId || !levelId) return
+
+    setRateLookupLoading(true)
+    try {
+      const response = await fetch(`/api/rate-cards/lookup?role_id=${roleId}&level_id=${levelId}`)
+      if (response.ok) {
+        const data = await response.json()
+        if (data.rateCard) {
+          setFormData(prev => ({ ...prev, defaultRate: data.rateCard.daily_rate.toString() }))
+          toast.success(`Rate auto-filled: ฿${data.rateCard.daily_rate.toLocaleString()}`)
+        } else {
+          toast.info('No rate card found for this role and level combination')
+        }
+      } else {
+        console.error('Failed to lookup rate card:', response.statusText)
+      }
+    } catch (error) {
+      console.error('Error looking up rate card:', error)
+    } finally {
+      setRateLookupLoading(false)
+    }
+  }
 
   // Function to create a new role
   const createNewRole = async () => {
@@ -311,7 +340,7 @@ function AddTeamMemberForm({ onClose }: { onClose: () => void }) {
       if (response.ok) {
         const newRole = await response.json()
         setRoles(prev => [...prev, newRole])
-        setFormData(prev => ({ ...prev, role: newRole.name }))
+        setFormData(prev => ({ ...prev, role_id: newRole.id.toString() }))
         setNewRoleName('')
         setShowNewRoleInput(false)
         toast.success(`Role "${newRole.name}" created successfully`)
@@ -326,25 +355,11 @@ function AddTeamMemberForm({ onClose }: { onClose: () => void }) {
     }
   }
 
-  // Function to handle new level creation (since levels are predefined, we'll just add it to the form)
-  const handleNewLevel = () => {
-    if (!newLevelName.trim()) return
-    
-    // Add the new level to the form data
-    setFormData(prev => ({ ...prev, level: newLevelName.trim().toUpperCase() }))
-    setNewLevelName('')
-    setShowNewLevelInput(false)
-    toast.success(`Level "${newLevelName.trim().toUpperCase()}" added successfully`)
-  }
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     
     try {
-      // Find the role ID from the selected role name
-      const selectedRole = roles.find(role => role.name === formData.role)
-      
       const response = await fetch('/api/team', {
         method: 'POST',
         headers: {
@@ -352,8 +367,8 @@ function AddTeamMemberForm({ onClose }: { onClose: () => void }) {
         },
         body: JSON.stringify({
           name: formData.name,
-          role_id: formData.role === 'custom' ? null : selectedRole?.id,
-          level_id: formData.level,
+          role_id: parseInt(formData.role_id),
+          level_id: parseInt(formData.level_id),
           default_rate_per_day: parseFloat(formData.defaultRate),
           notes: formData.notes,
           status: formData.status
@@ -393,66 +408,39 @@ function AddTeamMemberForm({ onClose }: { onClose: () => void }) {
         </div>
         
         <div>
-          <Label htmlFor="level">Level</Label>
-          <Select value={formData.level} onValueChange={(value) => {
-            if (value === 'add_new') {
-              setShowNewLevelInput(true)
-            } else {
-              setFormData({ ...formData, level: value })
+          <Label htmlFor="level">Level *</Label>
+          <Select value={formData.level_id} onValueChange={(value) => {
+            setFormData({ ...formData, level_id: value })
+            // Auto-fill rate when both role and level are selected
+            if (formData.role_id && value) {
+              lookupRateCard(formData.role_id, value)
             }
           }}>
             <SelectTrigger>
               <SelectValue placeholder="Select level" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="TEAM_LEAD">Team Lead</SelectItem>
-              <SelectItem value="SENIOR">Senior</SelectItem>
-              <SelectItem value="JUNIOR">Junior</SelectItem>
-              <SelectItem value="add_new" className="text-blue-600 font-medium">
-                + Add New Level
-              </SelectItem>
+              {levels.map((level) => (
+                <SelectItem key={level.id} value={level.id.toString()}>
+                  {level.display_name}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
-          
-          {showNewLevelInput && (
-            <div className="mt-2 flex gap-2">
-              <Input
-                placeholder="Enter new level name"
-                value={newLevelName}
-                onChange={(e) => setNewLevelName(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleNewLevel()}
-              />
-              <Button 
-                type="button" 
-                size="sm" 
-                onClick={handleNewLevel}
-                disabled={!newLevelName.trim()}
-              >
-                Add
-              </Button>
-              <Button 
-                type="button" 
-                variant="outline" 
-                size="sm" 
-                onClick={() => {
-                  setShowNewLevelInput(false)
-                  setNewLevelName('')
-                }}
-              >
-                Cancel
-              </Button>
-            </div>
-          )}
         </div>
       </div>
 
       <div>
-        <Label htmlFor="role">Role</Label>
-        <Select value={formData.role} onValueChange={(value) => {
+        <Label htmlFor="role">Role *</Label>
+        <Select value={formData.role_id} onValueChange={(value) => {
           if (value === 'add_new') {
             setShowNewRoleInput(true)
           } else {
-            setFormData({ ...formData, role: value })
+            setFormData({ ...formData, role_id: value })
+            // Auto-fill rate when both role and level are selected
+            if (value && formData.level_id) {
+              lookupRateCard(value, formData.level_id)
+            }
           }
         }}>
           <SelectTrigger>
@@ -460,11 +448,10 @@ function AddTeamMemberForm({ onClose }: { onClose: () => void }) {
           </SelectTrigger>
           <SelectContent>
             {roles.map((role) => (
-              <SelectItem key={role.id} value={role.name}>
+              <SelectItem key={role.id} value={role.id.toString()}>
                 {role.name}
               </SelectItem>
             ))}
-            <SelectItem value="custom">Custom Role</SelectItem>
             <SelectItem value="add_new" className="text-blue-600 font-medium">
               + Add New Role
             </SelectItem>
@@ -502,28 +489,43 @@ function AddTeamMemberForm({ onClose }: { onClose: () => void }) {
         )}
       </div>
 
-      {formData.role === 'custom' && (
-        <div>
-          <Label htmlFor="customRole">Custom Role</Label>
-          <Input
-            id="customRole"
-            value={formData.customRole}
-            onChange={(e) => setFormData({ ...formData, customRole: e.target.value })}
-            placeholder="Enter custom role"
-          />
-        </div>
-      )}
-
       <div>
-        <Label htmlFor="defaultRate">Default Rate per Day (THB) *</Label>
-        <Input
-          id="defaultRate"
-          type="number"
-          value={formData.defaultRate}
-          onChange={(e) => setFormData({ ...formData, defaultRate: e.target.value })}
-          placeholder="15000"
-          required
-        />
+        <div className="flex items-center gap-2">
+          <Label htmlFor="defaultRate">Default Rate per Day (THB) *</Label>
+          <div className="group relative">
+            <div className="cursor-help text-gray-400 hover:text-gray-600">
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
+              To edit rates, go to the <Link href="/rate-cards" className="underline hover:text-blue-300">Rate Cards page</Link>
+              <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+            </div>
+          </div>
+        </div>
+        <div className="relative">
+          <Input
+            id="defaultRate"
+            type="number"
+            value={formData.defaultRate}
+            placeholder="15000"
+            required
+            disabled={true}
+            className="bg-gray-50 cursor-not-allowed"
+          />
+          {rateLookupLoading && (
+            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900"></div>
+            </div>
+          )}
+        </div>
+        <p className="text-sm text-gray-500 mt-1">
+          Rate is automatically filled from rate cards. To modify rates, visit the{' '}
+          <Link href="/rate-cards" className="text-blue-600 hover:text-blue-800 underline">
+            Rate Cards page
+          </Link>.
+        </p>
       </div>
 
       <div>

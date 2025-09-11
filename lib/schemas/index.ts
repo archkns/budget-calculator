@@ -39,8 +39,8 @@ export const RateCardSchema = z.object({
 export const TeamMemberSchema = z.object({
   id: z.number().optional(),
   name: z.string().min(1, 'Name is required').max(255),
-  role_id: z.number().optional(),
-  level_id: z.number().optional(),
+  role_id: z.number().min(1, 'Role is required'),
+  level_id: z.number().min(1, 'Level is required'),
   default_rate_per_day: z.number().positive('Default rate must be positive'),
   notes: z.string().optional(),
   status: TeamMemberStatus.default('ACTIVE'),

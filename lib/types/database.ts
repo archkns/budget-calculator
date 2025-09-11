@@ -33,8 +33,8 @@ export interface RateCard {
 export interface TeamMember {
   id: number
   name: string
-  role_id: number | null
-  level_id: number | null
+  role_id: number
+  level_id: number
   default_rate_per_day: number
   notes: string | null
   status: 'ACTIVE' | 'INACTIVE'
@@ -116,8 +116,8 @@ export interface UpdateProjectData extends Partial<CreateProjectData> {
 
 export interface CreateTeamMemberData {
   name: string
-  role_id?: number
-  level_id?: number
+  role_id: number
+  level_id: number
   default_rate_per_day: number
   notes?: string
   status?: 'ACTIVE' | 'INACTIVE'

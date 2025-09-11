@@ -18,6 +18,11 @@ export async function GET(request: NextRequest) {
           roles:role_id (
             id,
             name
+          ),
+          levels:level_id (
+            id,
+            name,
+            display_name
           )
         `)
         .order('name', { ascending: true });
@@ -181,6 +186,11 @@ export async function PUT(request: NextRequest) {
           roles:role_id (
             id,
             name
+          ),
+          levels:level_id (
+            id,
+            name,
+            display_name
           )
         `)
         .single()
