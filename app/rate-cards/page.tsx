@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
-import { Calculator, Edit, X, Check, Plus } from 'lucide-react'
+import { Calculator, Edit, X, Check, Plus, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
 
@@ -35,6 +35,11 @@ export default function RateCards() {
   const [levels, setLevels] = useState<Level[]>([])
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [selectedRole, setSelectedRole] = useState<string>('')
+  const [deleteConfirmDialog, setDeleteConfirmDialog] = useState<{ isOpen: boolean; cardId: number | null; cardName: string }>({
+    isOpen: false,
+    cardId: null,
+    cardName: ''
+  })
 
   // Fetch rate cards and levels from database
   useEffect(() => {
@@ -76,12 +81,12 @@ export default function RateCards() {
     fetchData()
   }, [])
 
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = useCallback((amount: number) => {
     return `฿${amount.toLocaleString()}`
-  }
+  }, [])
 
   // Function to refresh rate cards data
-  const refreshRateCards = async () => {
+  const refreshRateCards = useCallback(async () => {
     try {
       const response = await fetch('/api/rate-cards')
       if (response.ok) {
@@ -101,13 +106,13 @@ export default function RateCards() {
     } catch (error) {
       console.error('Error fetching rate cards:', error)
     }
-  }
+  }, [])
 
   // Function to handle opening add rate card dialog
-  const handleAddRateCard = (roleName: string) => {
+  const handleAddRateCard = useCallback((roleName: string) => {
     setSelectedRole(roleName)
     setIsAddDialogOpen(true)
-  }
+  }, [])
 
 
   const startEditing = (cardId: number, currentRate: number) => {
@@ -180,14 +185,75 @@ export default function RateCards() {
     }
   }
 
-  // Group rate cards by role
-  const groupedRates = rateCards.reduce((acc, card) => {
-    if (!acc[card.role_name]) {
-      acc[card.role_name] = []
+  const deleteRateCard = async (cardId: number) => {
+    try {
+      const response = await fetch(`/api/rate-cards/${cardId}`, {
+        method: 'DELETE'
+      })
+
+      if (response.ok) {
+        setRateCards(prev => prev.filter(c => c.id !== cardId))
+        toast.success('Rate card deleted successfully')
+      } else {
+        console.error('Failed to delete rate card:', response.statusText)
+        toast.error('Failed to delete rate card. Please try again.')
+      }
+    } catch (error) {
+      console.error('Error deleting rate card:', error)
+      toast.error('Error deleting rate card. Please try again.')
     }
-    acc[card.role_name].push(card)
-    return acc
-  }, {} as Record<string, RateCard[]>)
+  }
+
+  const handleDeleteClick = (cardId: number, cardName: string) => {
+    setDeleteConfirmDialog({
+      isOpen: true,
+      cardId,
+      cardName
+    })
+  }
+
+  const confirmDelete = () => {
+    if (deleteConfirmDialog.cardId) {
+      deleteRateCard(deleteConfirmDialog.cardId)
+      setDeleteConfirmDialog({
+        isOpen: false,
+        cardId: null,
+        cardName: ''
+      })
+    }
+  }
+
+  const cancelDelete = () => {
+    setDeleteConfirmDialog({
+      isOpen: false,
+      cardId: null,
+      cardName: ''
+    })
+  }
+
+  // Group rate cards by role (optimized with useMemo)
+  const groupedRates = useMemo(() => {
+    return rateCards.reduce((acc, card) => {
+      if (!acc[card.role_name]) {
+        acc[card.role_name] = []
+      }
+      acc[card.role_name].push(card)
+      return acc
+    }, {} as Record<string, RateCard[]>)
+  }, [rateCards])
+
+  // Optimized summary stats calculation
+  const summaryStats = useMemo(() => {
+    const activeRates = rateCards.filter(c => c.is_active)
+    const activeRatesValues = activeRates.map(c => c.daily_rate)
+    
+    return {
+      totalRoles: Object.keys(groupedRates).length,
+      activeRateCards: activeRates.length,
+      averageRate: activeRates.length === 0 ? 0 : Math.round(activeRates.reduce((sum, c) => sum + c.daily_rate, 0) / activeRates.length),
+      highestRate: activeRatesValues.length === 0 ? 0 : Math.max(...activeRatesValues)
+    }
+  }, [rateCards, groupedRates])
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -229,7 +295,7 @@ export default function RateCards() {
               <CardTitle className="text-sm font-medium">Total Roles</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{Object.keys(groupedRates).length}</div>
+              <div className="text-2xl font-bold">{summaryStats.totalRoles}</div>
             </CardContent>
           </Card>
           
@@ -238,7 +304,7 @@ export default function RateCards() {
               <CardTitle className="text-sm font-medium">Active Rate Cards</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{rateCards.filter(c => c.is_active).length}</div>
+              <div className="text-2xl font-bold">{summaryStats.activeRateCards}</div>
             </CardContent>
           </Card>
           
@@ -248,12 +314,7 @@ export default function RateCards() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {(() => {
-                  const activeRates = rateCards.filter(c => c.is_active)
-                  if (activeRates.length === 0) return formatCurrency(0)
-                  const average = activeRates.reduce((sum, c) => sum + c.daily_rate, 0) / activeRates.length
-                  return formatCurrency(Math.round(average))
-                })()}
+                {formatCurrency(summaryStats.averageRate)}
               </div>
             </CardContent>
           </Card>
@@ -264,11 +325,7 @@ export default function RateCards() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {(() => {
-                  const activeRates = rateCards.filter(c => c.is_active).map(c => c.daily_rate)
-                  if (activeRates.length === 0) return formatCurrency(0)
-                  return formatCurrency(Math.max(...activeRates))
-                })()}
+                {formatCurrency(summaryStats.highestRate)}
               </div>
             </CardContent>
           </Card>
@@ -279,7 +336,7 @@ export default function RateCards() {
           <div className="text-center py-8">Loading...</div>
         ) : (
           <div className="space-y-6">
-            {Object.entries(groupedRates).map(([roleName, cards]) => (
+            {Object.entries(groupedRates).map(([roleName, cards]: [string, RateCard[]]) => (
               <Card key={roleName}>
                 <CardHeader>
                   <CardTitle className="flex items-center justify-between">
@@ -349,14 +406,24 @@ export default function RateCards() {
                           
                           <div className="flex items-center justify-between">
                             <span className="text-xs text-slate-500">per day</span>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => toggleActive(card.id)}
-                              className={card.is_active ? 'text-red-600 hover:text-red-700' : 'text-green-600 hover:text-green-700'}
-                            >
-                              {card.is_active ? 'Deactivate' : 'Activate'}
-                            </Button>
+                            <div className="flex items-center space-x-2">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => toggleActive(card.id)}
+                                className={card.is_active ? 'text-red-600 hover:text-red-700' : 'text-green-600 hover:text-green-700'}
+                              >
+                                {card.is_active ? 'Deactivate' : 'Activate'}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleDeleteClick(card.id, `${card.role_name} - ${card.level_display_name}`)}
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </div>
                         </div>
                       )
@@ -386,6 +453,26 @@ export default function RateCards() {
               }}
               onSuccess={refreshRateCards}
             />
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Confirmation Dialog */}
+        <Dialog open={deleteConfirmDialog.isOpen} onOpenChange={cancelDelete}>
+          <DialogContent className="sm:max-w-[400px]">
+            <DialogHeader>
+              <DialogTitle>Delete Rate Card</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to delete the rate card for "{deleteConfirmDialog.cardName}"? This action cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex justify-end space-x-3 pt-4">
+              <Button variant="outline" onClick={cancelDelete}>
+                Cancel
+              </Button>
+              <Button variant="destructive" onClick={confirmDelete}>
+                Delete
+              </Button>
+            </div>
           </DialogContent>
         </Dialog>
       </main>

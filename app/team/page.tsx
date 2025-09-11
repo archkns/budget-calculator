@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useMemo, memo } from 'react'
+import { useDebounce } from '@/hooks/use-debounce'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -36,10 +37,12 @@ interface TeamMember {
 
 export default function TeamLibrary() {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
-  const [filteredMembers, setFilteredMembers] = useState<TeamMember[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [roleFilter, setRoleFilter] = useState('all')
+  
+  // Debounce search term for better performance
+  const debouncedSearchTerm = useDebounce(searchTerm, 300)
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [editingMember, setEditingMember] = useState<TeamMember | null>(null)
@@ -55,7 +58,6 @@ export default function TeamLibrary() {
         if (teamResponse.ok) {
           const teamData = await teamResponse.json()
           setTeamMembers(teamData)
-          setFilteredMembers(teamData)
         } else {
           console.error('Failed to fetch team members:', teamResponse.statusText)
         }
@@ -78,11 +80,11 @@ export default function TeamLibrary() {
     fetchData()
   }, [])
 
-  // Filter logic
-  useEffect(() => {
-    const filtered = teamMembers.filter(member => {
-      const matchesSearch = member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           (member.roles?.name?.toLowerCase().includes(searchTerm.toLowerCase()))
+  // Optimized filter logic with useMemo and debounced search
+  const filteredMembers = useMemo(() => {
+    return teamMembers.filter(member => {
+      const matchesSearch = member.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+                           (member.roles?.name?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()))
       
       const matchesStatus = statusFilter === 'all' || member.status === statusFilter
       
@@ -91,22 +93,19 @@ export default function TeamLibrary() {
       
       return matchesSearch && matchesStatus && matchesRole
     })
-    
-    setFilteredMembers(filtered)
-  }, [teamMembers, searchTerm, statusFilter, roleFilter])
+  }, [teamMembers, debouncedSearchTerm, statusFilter, roleFilter])
 
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = useCallback((amount: number) => {
     return `฿${amount.toLocaleString()}`
-  }
+  }, [])
 
-  // Function to handle edit team member
-  const handleEditMember = (member: TeamMember) => {
+  // Optimized callback functions
+  const handleEditMember = useCallback((member: TeamMember) => {
     setEditingMember(member)
     setIsEditDialogOpen(true)
-  }
+  }, [])
 
-  // Function to handle delete team member
-  const handleDeleteMember = async (memberId: number) => {
+  const handleDeleteMember = useCallback(async (memberId: number) => {
     try {
       const response = await fetch(`/api/team/${memberId}`, {
         method: 'DELETE'
@@ -115,9 +114,7 @@ export default function TeamLibrary() {
       if (response.ok) {
         toast.success('Team member deleted successfully')
         // Refresh the team members list
-        const updatedMembers = teamMembers.filter(member => member.id !== memberId)
-        setTeamMembers(updatedMembers)
-        setFilteredMembers(updatedMembers)
+        setTeamMembers(prev => prev.filter(member => member.id !== memberId))
       } else {
         const errorData = await response.json()
         console.error('Failed to delete team member:', errorData)
@@ -127,23 +124,21 @@ export default function TeamLibrary() {
       console.error('Error deleting team member:', error)
       toast.error('Error deleting team member. Please try again.')
     }
-  }
+  }, [])
 
-  // Function to refresh team members data
-  const refreshTeamMembers = async () => {
+  const refreshTeamMembers = useCallback(async () => {
     try {
       const response = await fetch('/api/team')
       if (response.ok) {
         const data = await response.json()
         setTeamMembers(data)
-        setFilteredMembers(data)
       } else {
         console.error('Failed to fetch team members:', response.statusText)
       }
     } catch (error) {
       console.error('Error fetching team members:', error)
     }
-  }
+  }, [])
 
 
   return (
@@ -363,7 +358,7 @@ export default function TeamLibrary() {
   )
 }
 
-function AddTeamMemberForm({ onClose }: { onClose: () => void }) {
+const AddTeamMemberForm = memo(function AddTeamMemberForm({ onClose }: { onClose: () => void }) {
   const [formData, setFormData] = useState({
     name: '',
     role_id: '',
@@ -668,9 +663,9 @@ function AddTeamMemberForm({ onClose }: { onClose: () => void }) {
       </div>
     </form>
   )
-}
+})
 
-function EditTeamMemberForm({ 
+const EditTeamMemberForm = memo(function EditTeamMemberForm({ 
   member, 
   onClose, 
   onSuccess 
@@ -981,4 +976,4 @@ function EditTeamMemberForm({
       </div>
     </form>
   )
-}
+})

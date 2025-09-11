@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useMemo, memo } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -34,7 +34,7 @@ export default function Dashboard() {
   const [duplicateStartDate, setDuplicateStartDate] = useState('')
   const [duplicateEndDate, setDuplicateEndDate] = useState('')
 
-  const fetchProjects = async () => {
+  const fetchProjects = useCallback(async () => {
     try {
       setLoading(true)
       const response = await fetch('/api/projects')
@@ -51,13 +51,13 @@ export default function Dashboard() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
     fetchProjects()
-  }, [])
+  }, [fetchProjects])
 
-  const handleDeleteProject = async (projectId: number) => {
+  const handleDeleteProject = useCallback(async (projectId: number) => {
     try {
       const response = await fetch(`/api/projects/${projectId}`, {
         method: 'DELETE'
@@ -78,9 +78,9 @@ export default function Dashboard() {
     } finally {
       setDeleteProjectId(null)
     }
-  }
+  }, [])
 
-  const handleDuplicateProject = async (projectId: number) => {
+  const handleDuplicateProject = useCallback(async (projectId: number) => {
     try {
       const response = await fetch(`/api/projects/${projectId}/duplicate`, {
         method: 'POST',
@@ -114,9 +114,9 @@ export default function Dashboard() {
       console.error('Error duplicating project:', error)
       toast.error('Failed to duplicate project')
     }
-  }
+  }, [duplicateProjectName, duplicateClient, duplicateStartDate, duplicateEndDate])
 
-  const stats = {
+  const stats = useMemo(() => ({
     totalProjects: projects.length,
     activeProjects: projects.filter(p => p.status === 'ACTIVE').length,
     totalRevenue: projects
@@ -133,7 +133,7 @@ export default function Dashboard() {
       
       return totalROI / activeProjects.length
     })()
-  }
+  }), [projects])
 
   return (
     <div className="min-h-screen bg-slate-50">
