@@ -46,6 +46,9 @@ export async function POST(request: NextRequest) {
         case 'external':
           holidays = await fetchExternalHolidays(year)
           break
+        case 'iapp':
+          holidays = await fetchIAppThaiHolidays(year)
+          break
         default:
           holidays = await fetchLocalThaiHolidays(year)
       }
@@ -152,6 +155,7 @@ export async function GET(request: NextRequest) {
       status: stats,
       availableSources: [
         { id: 'thaiLocal', name: 'Thai Local Holidays', description: 'Local Thai holiday data (recommended)' },
+        { id: 'iapp', name: 'iApp Thai Holiday API', description: 'Official Thai holiday data from iApp Technology' },
         { id: 'external', name: 'MyHora API', description: 'External MyHora API (may be blocked by anti-bot protection)' }
       ],
       existingHolidays
@@ -275,5 +279,77 @@ async function fetchExternalHolidays(year: string): Promise<HolidayData[]> {
     }
     
     throw new Error(`Failed to fetch external holidays from MyHora API: ${error instanceof Error ? error.message : 'Unknown error'}`)
+  }
+}
+
+/**
+ * Fetch holidays from iApp Thai Holiday Data API
+ * Official Thai holiday data from iApp Technology
+ */
+async function fetchIAppThaiHolidays(year: string): Promise<HolidayData[]> {
+  try {
+    const apiKey = process.env.THAI_HOLIDAY_API_KEY
+    
+    if (!apiKey) {
+      throw new Error('Thai Holiday API key not configured. Please set THAI_HOLIDAY_API_KEY environment variable.')
+    }
+
+    console.log(`Fetching holidays from iApp Thai Holiday API for year ${year}`)
+    
+    // Calculate days from start of year to end of year
+    const startDate = new Date(`${year}-01-01`)
+    const endDate = new Date(`${year}-12-31`)
+    const daysAfter = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
+    
+    const response = await fetch(`https://api.iapp.co.th/data/thai-holidays/holidays?holiday_type=public&days_after=${daysAfter}`, {
+      headers: {
+        'apikey': apiKey,
+        'Accept': 'application/json',
+        'User-Agent': 'Budget-Calculator/1.0'
+      }
+    })
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+
+    const data = await response.json()
+    console.log('iApp API response structure:', Object.keys(data))
+
+    // Parse iApp API response
+    const holidays: HolidayData[] = []
+    
+    if (data.holidays && Array.isArray(data.holidays)) {
+      for (const holiday of data.holidays) {
+        // Filter holidays for the requested year
+        if (holiday.date && holiday.date.startsWith(year)) {
+          holidays.push({
+            id: `iapp-${holiday.date}`,
+            name: holiday.name || 'Thai Holiday',
+            date: holiday.date,
+            type: holiday.type || 'public',
+            notes: holiday.weekday ? `Day: ${holiday.weekday}` : '',
+            country: 'TH'
+          })
+        }
+      }
+    }
+
+    console.log(`Found ${holidays.length} holidays from iApp API for year ${year}`)
+    return holidays
+
+  } catch (error) {
+    console.error('Error fetching holidays from iApp API:', error)
+    
+    // Provide helpful error message for common issues
+    if (error instanceof Error && error.message.includes('API key not configured')) {
+      throw new Error('Thai Holiday API key not configured. Please set THAI_HOLIDAY_API_KEY environment variable.')
+    }
+    
+    if (error instanceof Error && error.message.includes('401')) {
+      throw new Error('Invalid API key for iApp Thai Holiday API. Please check your API key.')
+    }
+    
+    throw new Error(`Failed to fetch holidays from iApp API: ${error instanceof Error ? error.message : 'Unknown error'}`)
   }
 }
