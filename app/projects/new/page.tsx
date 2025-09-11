@@ -10,7 +10,11 @@ import { Switch } from '@/components/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import { DayPicker } from '@/components/ui/day-picker'
+import { Calendar } from '@/components/ui/calendar'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { CalendarIcon } from 'lucide-react'
 import { Calculator, ArrowLeft, Save, Rocket } from 'lucide-react'
+import { format } from 'date-fns'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import { CURRENCIES } from '@/lib/currencies'
@@ -26,6 +30,8 @@ interface ProjectFormData {
   working_week: string
   custom_working_days: string[]
   guarantee_days: number
+  start_date: string | null
+  end_date: string | null
 }
 
 // Use shared currency configuration
@@ -50,10 +56,12 @@ export default function NewProjectPage() {
     proposed_price: undefined,
     working_week: 'MON_TO_FRI',
     custom_working_days: ['MON', 'TUE', 'WED', 'THU', 'FRI'],
-    guarantee_days: 30
+    guarantee_days: 30,
+    start_date: null,
+    end_date: null
   })
 
-  const handleInputChange = (field: keyof ProjectFormData, value: string | number | boolean | string[] | undefined) => {
+  const handleInputChange = (field: keyof ProjectFormData, value: string | number | boolean | string[] | undefined | null) => {
     setFormData(prev => ({ ...prev, [field]: value }))
   }
 
@@ -287,6 +295,58 @@ export default function NewProjectPage() {
             </CardContent>
           </Card>
 
+          {/* Project Timeline */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Project Timeline</CardTitle>
+              <CardDescription>
+                Set the start and end dates for your project (optional)
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label>Start Date</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full justify-start text-left font-normal">
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {formData.start_date ? format(new Date(formData.start_date), 'dd MMM yyyy') : 'Select start date'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={formData.start_date ? new Date(formData.start_date) : undefined}
+                        onSelect={(date) => handleInputChange('start_date', date ? date.toISOString().split('T')[0] : null)}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label>End Date</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full justify-start text-left font-normal">
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {formData.end_date ? format(new Date(formData.end_date), 'dd MMM yyyy') : 'Select end date'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={formData.end_date ? new Date(formData.end_date) : undefined}
+                        onSelect={(date) => handleInputChange('end_date', date ? date.toISOString().split('T')[0] : null)}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Action Buttons */}
           <div className="flex items-center justify-between pt-6">

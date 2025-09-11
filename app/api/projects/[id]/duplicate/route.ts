@@ -83,8 +83,8 @@ export async function POST(
       execution_days: originalProject.execution_days,
       buffer_days: originalProject.buffer_days,
       guarantee_days: originalProject.guarantee_days,
-      start_date: startDate ? new Date(startDate) : null,
-      end_date: endDate ? new Date(endDate) : null,
+      start_date: startDate ? new Date(startDate) : (originalProject.start_date ? new Date(originalProject.start_date) : null),
+      end_date: endDate ? new Date(endDate) : (originalProject.end_date ? new Date(originalProject.end_date) : null),
       status: 'DRAFT' // Always start duplicated projects as drafts
     }
 

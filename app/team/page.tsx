@@ -196,7 +196,7 @@ export default function TeamLibrary() {
                   Add Team Member
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[500px]">
+              <DialogContent className="sm:max-w-[600px]">
                 <DialogHeader>
                   <DialogTitle>Add Team Member</DialogTitle>
                   <DialogDescription>
@@ -211,7 +211,7 @@ export default function TeamLibrary() {
             </Dialog>
             
             <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-              <DialogContent className="sm:max-w-[500px]">
+              <DialogContent className="sm:max-w-[600px]">
                 <DialogHeader>
                   <DialogTitle>Edit Team Member</DialogTitle>
                   <DialogDescription>
@@ -390,13 +390,35 @@ const AddTeamMemberForm = memo(function AddTeamMemberForm({
     status: 'ACTIVE'
   })
   const [roles, setRoles] = useState<Array<{id: number, name: string}>>([])
-  const [levels, setLevels] = useState<Array<{id: number, name: string, display_name: string}>>([])
+  const [filteredLevels, setFilteredLevels] = useState<Array<{id: number, name: string, display_name: string}>>([])
   const [loading, setLoading] = useState(false)
   const [showNewRoleInput, setShowNewRoleInput] = useState(false)
   const [newRoleName, setNewRoleName] = useState('')
   const [rateLookupLoading, setRateLookupLoading] = useState(false)
 
-  // Fetch roles and levels when component mounts
+  // Function to fetch levels filtered by role
+  const fetchLevelsByRole = async (roleId: string) => {
+    if (!roleId || roleId === 'undefined' || roleId === 'null') {
+      setFilteredLevels([])
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/levels/by-role?role_id=${roleId}`)
+      if (response.ok) {
+        const levelsData = await response.json()
+        setFilteredLevels(Array.isArray(levelsData) ? levelsData : [])
+      } else {
+        console.error('Failed to fetch levels by role:', response.statusText)
+        setFilteredLevels([])
+      }
+    } catch (error) {
+      console.error('Error fetching levels by role:', error)
+      setFilteredLevels([])
+    }
+  }
+
+  // Fetch roles when component mounts
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -409,14 +431,7 @@ const AddTeamMemberForm = memo(function AddTeamMemberForm({
           console.error('Failed to fetch roles:', rolesResponse.statusText)
         }
 
-        // Fetch levels
-        const levelsResponse = await fetch('/api/levels')
-        if (levelsResponse.ok) {
-          const levelsData = await levelsResponse.json()
-          setLevels(levelsData)
-        } else {
-          console.error('Failed to fetch levels:', levelsResponse.statusText)
-        }
+        // Note: Levels are now fetched dynamically based on selected role
       } catch (error) {
         console.error('Error fetching data:', error)
       }
@@ -488,7 +503,7 @@ const AddTeamMemberForm = memo(function AddTeamMemberForm({
     
     // Create optimistic team member for immediate UI feedback
     const selectedRole = roles.find(role => role.id.toString() === formData.role_id)
-    const selectedLevel = levels.find(level => level.id.toString() === formData.level_id)
+    const selectedLevel = filteredLevels.find(level => level.id.toString() === formData.level_id)
     
     const optimisticMember: TeamMember = {
       id: Date.now(), // Temporary ID for optimistic update
@@ -555,44 +570,23 @@ const AddTeamMemberForm = memo(function AddTeamMemberForm({
         </div>
         
         <div>
-          <Label htmlFor="level">Level *</Label>
-          <Select value={formData.level_id} onValueChange={(value) => {
-            setFormData({ ...formData, level_id: value })
-            // Auto-fill rate when both role and level are selected
-            if (formData.role_id && value) {
-              lookupRateCard(formData.role_id, value)
+          <Label htmlFor="role">Role *</Label>
+          <Select value={formData.role_id} onValueChange={(value) => {
+            if (value === 'add_new') {
+              setShowNewRoleInput(true)
+            } else {
+              setFormData({ ...formData, role_id: value, level_id: '' }) // Reset level when role changes
+              // Fetch filtered levels for the selected role
+              fetchLevelsByRole(value)
+              // Auto-fill rate when both role and level are selected
+              if (value && formData.level_id) {
+                lookupRateCard(value, formData.level_id)
+              }
             }
           }}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select level" />
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select role" />
             </SelectTrigger>
-            <SelectContent>
-              {levels.map((level) => (
-                <SelectItem key={level.id} value={level.id.toString()}>
-                  {level.display_name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      <div>
-        <Label htmlFor="role">Role *</Label>
-        <Select value={formData.role_id} onValueChange={(value) => {
-          if (value === 'add_new') {
-            setShowNewRoleInput(true)
-          } else {
-            setFormData({ ...formData, role_id: value })
-            // Auto-fill rate when both role and level are selected
-            if (value && formData.level_id) {
-              lookupRateCard(value, formData.level_id)
-            }
-          }
-        }}>
-          <SelectTrigger>
-            <SelectValue placeholder="Select role" />
-          </SelectTrigger>
           <SelectContent>
             {roles.map((role) => (
               <SelectItem key={role.id} value={role.id.toString()}>
@@ -634,6 +628,35 @@ const AddTeamMemberForm = memo(function AddTeamMemberForm({
             </Button>
           </div>
         )}
+        </div>
+      </div>
+
+      <div>
+        <Label htmlFor="level">Level *</Label>
+        <Select value={formData.level_id} onValueChange={(value) => {
+          setFormData({ ...formData, level_id: value })
+          // Auto-fill rate when both role and level are selected
+          if (formData.role_id && value) {
+            lookupRateCard(formData.role_id, value)
+          }
+        }} disabled={!formData.role_id}>
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder={formData.role_id ? "Select level" : "Select role first"} />
+          </SelectTrigger>
+          <SelectContent>
+            {filteredLevels.length > 0 ? (
+              filteredLevels.map((level) => (
+                <SelectItem key={level.id} value={level.id.toString()}>
+                  {level.display_name}
+                </SelectItem>
+              ))
+            ) : (
+              <SelectItem value="disabled" disabled>
+                {formData.role_id ? "No levels available for this role" : "Please select a role first"}
+              </SelectItem>
+            )}
+          </SelectContent>
+        </Select>
       </div>
 
       <div>
@@ -668,7 +691,7 @@ const AddTeamMemberForm = memo(function AddTeamMemberForm({
           )}
         </div>
         <p className="text-sm text-gray-500 mt-1">
-          Rate is automatically filled from rate cards. To modify rates, visit the{' '}
+          To modify rates, visit the{' '}
           <Link href="/rate-cards" className="text-blue-600 hover:text-blue-800 underline">
             Rate Cards page
           </Link>.
@@ -717,19 +740,41 @@ const EditTeamMemberForm = memo(function EditTeamMemberForm({
   onSuccess: () => void
 }) {
   const [formData, setFormData] = useState({
-    name: member.name,
-    role_id: member.roles?.id?.toString() || '',
-    level_id: member.levels?.id?.toString() || '',
-    defaultRate: member.rate_per_day.toString(),
-    notes: member.notes || '',
-    status: member.status
+    name: member?.name || '',
+    role_id: member?.roles?.id?.toString() || '',
+    level_id: member?.levels?.id?.toString() || '',
+    defaultRate: member?.rate_per_day?.toString() || '',
+    notes: member?.notes || '',
+    status: member?.status || 'ACTIVE'
   })
   const [roles, setRoles] = useState<Array<{id: number, name: string}>>([])
-  const [levels, setLevels] = useState<Array<{id: number, name: string, display_name: string}>>([])
+  const [filteredLevels, setFilteredLevels] = useState<Array<{id: number, name: string, display_name: string}>>([])
   const [loading, setLoading] = useState(false)
   const [showNewRoleInput, setShowNewRoleInput] = useState(false)
   const [newRoleName, setNewRoleName] = useState('')
   const [rateLookupLoading, setRateLookupLoading] = useState(false)
+
+  // Function to fetch levels filtered by role
+  const fetchLevelsByRole = async (roleId: string) => {
+    if (!roleId || roleId === 'undefined' || roleId === 'null') {
+      setFilteredLevels([])
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/levels/by-role?role_id=${roleId}`)
+      if (response.ok) {
+        const levelsData = await response.json()
+        setFilteredLevels(Array.isArray(levelsData) ? levelsData : [])
+      } else {
+        console.error('Failed to fetch levels by role:', response.statusText)
+        setFilteredLevels([])
+      }
+    } catch (error) {
+      console.error('Error fetching levels by role:', error)
+      setFilteredLevels([])
+    }
+  }
 
   // Fetch roles and levels when component mounts
   useEffect(() => {
@@ -744,20 +789,16 @@ const EditTeamMemberForm = memo(function EditTeamMemberForm({
           console.error('Failed to fetch roles:', rolesResponse.statusText)
         }
 
-        // Fetch levels
-        const levelsResponse = await fetch('/api/levels')
-        if (levelsResponse.ok) {
-          const levelsData = await levelsResponse.json()
-          setLevels(levelsData)
-        } else {
-          console.error('Failed to fetch levels:', levelsResponse.statusText)
+        // If member has a role, fetch filtered levels for that role
+        if (member?.roles?.id) {
+          await fetchLevelsByRole(member.roles.id.toString())
         }
       } catch (error) {
         console.error('Error fetching data:', error)
       }
     }
     fetchData()
-  }, [])
+  }, [member.id, member.roles?.id])
 
   // Function to lookup rate card when both role and level are selected
   const lookupRateCard = async (roleId: string, levelId: string) => {
@@ -854,6 +895,11 @@ const EditTeamMemberForm = memo(function EditTeamMemberForm({
     }
   }
 
+  // Safety check to prevent rendering if member is not properly loaded
+  if (!member || !member.id) {
+    return <div className="p-4 text-center">Loading team member data...</div>
+  }
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
@@ -868,85 +914,93 @@ const EditTeamMemberForm = memo(function EditTeamMemberForm({
         </div>
         
         <div>
-          <Label htmlFor="level">Level *</Label>
-          <Select value={formData.level_id} onValueChange={(value) => {
-            setFormData({ ...formData, level_id: value })
-            // Auto-fill rate when both role and level are selected
-            if (formData.role_id && value) {
-              lookupRateCard(formData.role_id, value)
+          <Label htmlFor="role">Role *</Label>
+          <Select value={formData.role_id} onValueChange={(value) => {
+            if (value === 'add_new') {
+              setShowNewRoleInput(true)
+            } else {
+              setFormData({ ...formData, role_id: value, level_id: '' }) // Reset level when role changes
+              // Fetch filtered levels for the selected role
+              fetchLevelsByRole(value)
+              // Auto-fill rate when both role and level are selected
+              if (value && formData.level_id) {
+                lookupRateCard(value, formData.level_id)
+              }
             }
           }}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select level" />
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select role" />
             </SelectTrigger>
             <SelectContent>
-              {levels.map((level) => (
-                <SelectItem key={level.id} value={level.id.toString()}>
-                  {level.display_name}
+              {roles.map((role) => (
+                <SelectItem key={role.id} value={role.id.toString()}>
+                  {role.name}
                 </SelectItem>
               ))}
+              <SelectItem value="add_new" className="text-blue-600 font-medium">
+                + Add New Role
+              </SelectItem>
             </SelectContent>
           </Select>
+          
+          {showNewRoleInput && (
+            <div className="mt-2 flex gap-2">
+              <Input
+                placeholder="Enter new role name"
+                value={newRoleName}
+                onChange={(e) => setNewRoleName(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && createNewRole()}
+              />
+              <Button 
+                type="button" 
+                size="sm" 
+                onClick={createNewRole}
+                disabled={!newRoleName.trim()}
+              >
+                Add
+              </Button>
+              <Button 
+                type="button" 
+                variant="outline" 
+                size="sm" 
+                onClick={() => {
+                  setShowNewRoleInput(false)
+                  setNewRoleName('')
+                }}
+              >
+                Cancel
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 
       <div>
-        <Label htmlFor="role">Role *</Label>
-        <Select value={formData.role_id} onValueChange={(value) => {
-          if (value === 'add_new') {
-            setShowNewRoleInput(true)
-          } else {
-            setFormData({ ...formData, role_id: value })
-            // Auto-fill rate when both role and level are selected
-            if (value && formData.level_id) {
-              lookupRateCard(value, formData.level_id)
-            }
+        <Label htmlFor="level">Level *</Label>
+        <Select value={formData.level_id} onValueChange={(value) => {
+          setFormData({ ...formData, level_id: value })
+          // Auto-fill rate when both role and level are selected
+          if (formData.role_id && value) {
+            lookupRateCard(formData.role_id, value)
           }
-        }}>
-          <SelectTrigger>
-            <SelectValue placeholder="Select role" />
+        }} disabled={!formData.role_id}>
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder={formData.role_id ? "Select level" : "Select role first"} />
           </SelectTrigger>
           <SelectContent>
-            {roles.map((role) => (
-              <SelectItem key={role.id} value={role.id.toString()}>
-                {role.name}
+            {filteredLevels.length > 0 ? (
+              filteredLevels.map((level) => (
+                <SelectItem key={level.id} value={level.id.toString()}>
+                  {level.display_name}
+                </SelectItem>
+              ))
+            ) : (
+              <SelectItem value="disabled" disabled>
+                {formData.role_id ? "No levels available for this role" : "Please select a role first"}
               </SelectItem>
-            ))}
-            <SelectItem value="add_new" className="text-blue-600 font-medium">
-              + Add New Role
-            </SelectItem>
+            )}
           </SelectContent>
         </Select>
-        
-        {showNewRoleInput && (
-          <div className="mt-2 flex gap-2">
-            <Input
-              placeholder="Enter new role name"
-              value={newRoleName}
-              onChange={(e) => setNewRoleName(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && createNewRole()}
-            />
-            <Button 
-              type="button" 
-              size="sm" 
-              onClick={createNewRole}
-              disabled={!newRoleName.trim()}
-            >
-              Add
-            </Button>
-            <Button 
-              type="button" 
-              variant="outline" 
-              size="sm" 
-              onClick={() => {
-                setShowNewRoleInput(false)
-                setNewRoleName('')
-              }}
-            >
-              Cancel
-            </Button>
-          </div>
-        )}
       </div>
 
       <div>
@@ -981,7 +1035,7 @@ const EditTeamMemberForm = memo(function EditTeamMemberForm({
           )}
         </div>
         <p className="text-sm text-gray-500 mt-1">
-          Rate is automatically filled from rate cards. To modify rates, visit the{' '}
+          To modify rates, visit the{' '}
           <Link href="/rate-cards" className="text-blue-600 hover:text-blue-800 underline">
             Rate Cards page
           </Link>.
