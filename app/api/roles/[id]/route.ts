@@ -148,7 +148,7 @@ export async function DELETE(
     }
 
     
-    // Check if role is referenced by team members or rate cards
+    // Check if role is referenced by team members (but allow deletion of rate cards)
     try {
       const teamMembersResult = await supabaseAdmin()
         .from('team_members')
@@ -156,19 +156,34 @@ export async function DELETE(
         .eq('role_id', id)
         .limit(1);
       
-      const rateCardsResult = await supabaseAdmin()
-        .from('rate_cards')
-        .select('id')
-        .eq('role_id', id)
-        .limit(1);
-      
       const hasTeamMembers = teamMembersResult.data && teamMembersResult.data.length > 0;
-      const hasRateCards = rateCardsResult.data && rateCardsResult.data.length > 0;
       
-      if (hasTeamMembers || hasRateCards) {
+      if (hasTeamMembers) {
         return NextResponse.json(
-          { error: 'Cannot delete role that is referenced by team members or rate cards' },
+          { error: 'Cannot delete role that is referenced by team members' },
           { status: 409 }
+        );
+      }
+    } catch (supabaseError) {
+      console.error('Supabase client initialization error:', supabaseError)
+      return NextResponse.json(
+        { error: 'Database connection failed' },
+        { status: 500 }
+      )
+    }
+    
+    // Delete all rate cards for this role first
+    try {
+      const { error: rateCardsError } = await supabaseAdmin()
+        .from('rate_cards')
+        .delete()
+        .eq('role_id', id);
+      
+      if (rateCardsError) {
+        console.error('Error deleting rate cards:', rateCardsError);
+        return NextResponse.json(
+          { error: 'Failed to delete associated rate cards' },
+          { status: 500 }
         );
       }
     } catch (supabaseError) {

@@ -33,6 +33,7 @@ export default function RateCards() {
   const [editValue, setEditValue] = useState<string>('')
   const [loading, setLoading] = useState(true)
   const [levels, setLevels] = useState<Level[]>([])
+  const [roles, setRoles] = useState<Array<{id: number, name: string}>>([])
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [selectedRole, setSelectedRole] = useState<string>('')
   const [deleteConfirmDialog, setDeleteConfirmDialog] = useState<{ isOpen: boolean; cardId: number | null; cardName: string }>({
@@ -40,6 +41,12 @@ export default function RateCards() {
     cardId: null,
     cardName: ''
   })
+  const [deleteRoleConfirmDialog, setDeleteRoleConfirmDialog] = useState<{ isOpen: boolean; roleName: string; roleId: number | null }>({
+    isOpen: false,
+    roleName: '',
+    roleId: null
+  })
+  const [isAddRoleDialogOpen, setIsAddRoleDialogOpen] = useState(false)
 
   // Fetch rate cards and levels from database
   useEffect(() => {
@@ -70,6 +77,15 @@ export default function RateCards() {
           setLevels(levelsData)
         } else {
           console.error('Failed to fetch levels:', levelsResponse.statusText)
+        }
+
+        // Fetch roles
+        const rolesResponse = await fetch('/api/roles')
+        if (rolesResponse.ok) {
+          const rolesData = await rolesResponse.json()
+          setRoles(rolesData)
+        } else {
+          console.error('Failed to fetch roles:', rolesResponse.statusText)
         }
       } catch (error) {
         console.error('Error fetching data:', error)
@@ -244,6 +260,76 @@ export default function RateCards() {
     })
   }
 
+  const deleteRole = async (roleId: number) => {
+    try {
+      console.log('Attempting to delete role:', deleteRoleConfirmDialog.roleName, 'with ID:', roleId)
+      const response = await fetch(`/api/roles/${roleId}`, {
+        method: 'DELETE'
+      })
+
+      if (response.ok) {
+        // Remove all rate cards for this role from the UI
+        setRateCards(prev => prev.filter(card => card.role_name !== deleteRoleConfirmDialog.roleName))
+        // Also refresh the roles list to remove the deleted role
+        refreshRoles()
+        toast.success('Role and all its rate cards deleted successfully')
+      } else {
+        const errorData = await response.json()
+        console.error('Failed to delete role:', errorData)
+        
+        if (response.status === 409) {
+          toast.error(`Cannot delete role "${deleteRoleConfirmDialog.roleName}" because it is assigned to team members. Please remove team members with this role first.`)
+        } else {
+          toast.error(`Failed to delete role: ${errorData.error || response.statusText}`)
+        }
+      }
+    } catch (error) {
+      console.error('Error deleting role:', error)
+      toast.error('Error deleting role. Please try again.')
+    }
+  }
+
+  const handleDeleteRoleClick = (roleName: string, roleId: number) => {
+    setDeleteRoleConfirmDialog({
+      isOpen: true,
+      roleName,
+      roleId
+    })
+  }
+
+  const confirmDeleteRole = () => {
+    if (deleteRoleConfirmDialog.roleId) {
+      deleteRole(deleteRoleConfirmDialog.roleId)
+      setDeleteRoleConfirmDialog({
+        isOpen: false,
+        roleName: '',
+        roleId: null
+      })
+    }
+  }
+
+  const cancelDeleteRole = () => {
+    setDeleteRoleConfirmDialog({
+      isOpen: false,
+      roleName: '',
+      roleId: null
+    })
+  }
+
+  const refreshRoles = useCallback(async () => {
+    try {
+      const rolesResponse = await fetch('/api/roles')
+      if (rolesResponse.ok) {
+        const rolesData = await rolesResponse.json()
+        setRoles(rolesData)
+      } else {
+        console.error('Failed to fetch roles:', rolesResponse.statusText)
+      }
+    } catch (error) {
+      console.error('Error fetching roles:', error)
+    }
+  }, [])
+
   // Group rate cards by role (optimized with useMemo)
   const groupedRates = useMemo(() => {
     return rateCards.reduce((acc, card) => {
@@ -297,7 +383,7 @@ export default function RateCards() {
           <div className="flex items-center space-x-3">
             <Button variant="outline">Import Rates</Button>
             <Button variant="outline">Export Rates</Button>
-            <Button>Add New Role</Button>
+            <Button onClick={() => setIsAddRoleDialogOpen(true)}>Add New Role</Button>
           </div>
         </div>
 
@@ -362,6 +448,24 @@ export default function RateCards() {
                       >
                         <Plus className="h-4 w-4 mr-1" />
                         Add Rate Card
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          const role = roles.find(r => r.name === roleName)
+                          console.log('Delete role button clicked for:', roleName, 'Found role:', role)
+                          if (role) {
+                            handleDeleteRoleClick(roleName, role.id)
+                          } else {
+                            console.error('Role not found in roles array:', roleName, 'Available roles:', roles.map(r => r.name))
+                            toast.error(`Role "${roleName}" not found. Please refresh the page.`)
+                          }
+                        }}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        Delete Role
                       </Button>
                     </div>
                   </CardTitle>
@@ -483,6 +587,42 @@ export default function RateCards() {
                 Delete
               </Button>
             </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Role Confirmation Dialog */}
+        <Dialog open={deleteRoleConfirmDialog.isOpen} onOpenChange={cancelDeleteRole}>
+          <DialogContent className="sm:max-w-[400px]">
+            <DialogHeader>
+              <DialogTitle>Delete Role</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to delete the role "{deleteRoleConfirmDialog.roleName}" and all its rate cards? This action cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex justify-end space-x-3 pt-4">
+              <Button variant="outline" onClick={cancelDeleteRole}>
+                Cancel
+              </Button>
+              <Button variant="destructive" onClick={confirmDeleteRole}>
+                Delete Role
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Add New Role Dialog */}
+        <Dialog open={isAddRoleDialogOpen} onOpenChange={setIsAddRoleDialogOpen}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Add New Role</DialogTitle>
+              <DialogDescription>
+                Create a new role for your team
+              </DialogDescription>
+            </DialogHeader>
+            <AddRoleForm 
+              onClose={() => setIsAddRoleDialogOpen(false)}
+              onSuccess={refreshRoles}
+            />
           </DialogContent>
         </Dialog>
       </main>
@@ -655,6 +795,120 @@ function AddRateCardForm({
         </Button>
         <Button type="submit" disabled={loading}>
           {loading ? 'Adding...' : 'Add Rate Card'}
+        </Button>
+      </div>
+    </form>
+  )
+}
+
+function AddRoleForm({ 
+  onClose, 
+  onSuccess 
+}: { 
+  onClose: () => void
+  onSuccess: () => void
+}) {
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    is_active: true,
+    sort_order: 0
+  })
+  const [loading, setLoading] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    
+    try {
+      const response = await fetch('/api/roles', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: formData.name.trim(),
+          ...(formData.description.trim() && { description: formData.description.trim() }),
+          is_active: formData.is_active,
+          sort_order: formData.sort_order
+        })
+      })
+
+      if (response.ok) {
+        toast.success('Role created successfully')
+        onSuccess()
+        onClose()
+        // Reset form
+        setFormData({
+          name: '',
+          description: '',
+          is_active: true,
+          sort_order: 0
+        })
+      } else {
+        const errorData = await response.json()
+        console.error('Failed to create role:', errorData)
+        toast.error(`Failed to create role: ${errorData.error || response.statusText}`)
+      }
+    } catch (error) {
+      console.error('Error creating role:', error)
+      toast.error('Error creating role. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <Label htmlFor="role_name">Role Name *</Label>
+        <Input
+          id="role_name"
+          value={formData.name}
+          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+          placeholder="e.g., Senior Developer, Project Manager"
+          required
+        />
+      </div>
+
+      <div>
+        <Label htmlFor="role_description">Description</Label>
+        <Input
+          id="role_description"
+          value={formData.description}
+          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+          placeholder="Brief description of the role"
+        />
+      </div>
+
+      <div>
+        <Label htmlFor="sort_order">Sort Order</Label>
+        <Input
+          id="sort_order"
+          type="number"
+          value={formData.sort_order}
+          onChange={(e) => setFormData({ ...formData, sort_order: parseInt(e.target.value) || 0 })}
+          placeholder="0"
+        />
+      </div>
+
+      <div className="flex items-center space-x-2">
+        <input
+          type="checkbox"
+          id="is_active"
+          checked={formData.is_active}
+          onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+          className="rounded"
+        />
+        <Label htmlFor="is_active">Active</Label>
+      </div>
+
+      <div className="flex justify-end space-x-3 pt-4">
+        <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
+          Cancel
+        </Button>
+        <Button type="submit" disabled={loading}>
+          {loading ? 'Creating...' : 'Create Role'}
         </Button>
       </div>
     </form>

@@ -102,6 +102,25 @@ export async function PUT(
       )
     }
 
+    // Update project's allocated budget to match the sum of all assignments
+    try {
+      const { data: allAssignments } = await supabaseAdmin()
+        .from('project_assignments')
+        .select('allocated_budget')
+        .eq('project_id', projectId)
+
+      const totalAllocatedBudget = allAssignments?.reduce((sum, assignment) => 
+        sum + (assignment.allocated_budget || 0), 0) || 0
+
+      await supabaseAdmin()
+        .from('projects')
+        .update({ allocated_budget: totalAllocatedBudget })
+        .eq('id', projectId)
+    } catch (budgetUpdateError) {
+      console.error('Error updating project allocated budget:', budgetUpdateError)
+      // Don't fail the request if budget update fails, just log it
+    }
+
     return NextResponse.json(updatedAssignment)
   } catch (error) {
     console.error('Error updating project assignment:', error)
@@ -141,6 +160,25 @@ export async function DELETE(
         { error: 'Failed to delete project assignment' },
         { status: 500 }
       )
+    }
+
+    // Update project's allocated budget to match the sum of all remaining assignments
+    try {
+      const { data: allAssignments } = await supabaseAdmin()
+        .from('project_assignments')
+        .select('allocated_budget')
+        .eq('project_id', projectId)
+
+      const totalAllocatedBudget = allAssignments?.reduce((sum, assignment) => 
+        sum + (assignment.allocated_budget || 0), 0) || 0
+
+      await supabaseAdmin()
+        .from('projects')
+        .update({ allocated_budget: totalAllocatedBudget })
+        .eq('id', projectId)
+    } catch (budgetUpdateError) {
+      console.error('Error updating project allocated budget:', budgetUpdateError)
+      // Don't fail the request if budget update fails, just log it
     }
 
     return NextResponse.json({ message: 'Assignment deleted successfully' })

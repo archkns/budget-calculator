@@ -136,6 +136,25 @@ export async function POST(
       )
     }
 
+    // Update project's allocated budget to match the sum of all assignments
+    try {
+      const { data: allAssignments } = await supabaseAdmin()
+        .from('project_assignments')
+        .select('allocated_budget')
+        .eq('project_id', projectId)
+
+      const totalAllocatedBudget = allAssignments?.reduce((sum, assignment) => 
+        sum + (assignment.allocated_budget || 0), 0) || 0
+
+      await supabaseAdmin()
+        .from('projects')
+        .update({ allocated_budget: totalAllocatedBudget })
+        .eq('id', projectId)
+    } catch (budgetUpdateError) {
+      console.error('Error updating project allocated budget:', budgetUpdateError)
+      // Don't fail the request if budget update fails, just log it
+    }
+
     return NextResponse.json(newAssignment, { status: 201 })
   } catch (error) {
     console.error('Error creating project assignment:', error)

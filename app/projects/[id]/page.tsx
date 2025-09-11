@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -127,6 +127,10 @@ export default function ProjectWorkspace() {
   const [teamLibrary, setTeamLibrary] = useState<TeamMember[]>([])
   const [holidays, setHolidays] = useState<Holiday[]>([])
   const [, setLoading] = useState(false)
+  
+  // Local state for immediate UI feedback (debounced API updates)
+  const [localAssignments, setLocalAssignments] = useState<ProjectAssignment[]>([])
+  const debounceTimers = useRef<{ [key: string]: NodeJS.Timeout }>({})
   const [showAddTeamMember, setShowAddTeamMember] = useState(false)
   const [selectedTeamMember, setSelectedTeamMember] = useState<TeamMember | null>(null)
   const [showStatusEdit, setShowStatusEdit] = useState(false)
@@ -356,6 +360,21 @@ export default function ProjectWorkspace() {
     checkProjectStatus()
   }, [projectDates.projectEndDate, project.status, updateProjectStatus])
 
+  // Sync local assignments with main assignments state
+  useEffect(() => {
+    setLocalAssignments(assignments)
+  }, [assignments])
+
+  // Cleanup debounce timers on unmount
+  useEffect(() => {
+    const timers = debounceTimers.current
+    return () => {
+      Object.values(timers).forEach(timer => {
+        if (timer) clearTimeout(timer)
+      })
+    }
+  }, [])
+
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
       case 'ACTIVE':
@@ -390,8 +409,8 @@ export default function ProjectWorkspace() {
     // Proposed price from project
     const proposedPrice = project.proposedPrice
     
-    // Calculate total cost from team assignment total prices
-    const totalAssignmentCost = assignments.reduce((sum, assignment) => sum + assignment.allocated_budget, 0)
+    // Calculate total cost from team assignment total prices (use localAssignments for immediate feedback)
+    const totalAssignmentCost = localAssignments.reduce((sum, assignment) => sum + assignment.allocated_budget, 0)
     
     // Calculate tax if enabled (on total assignment cost)
     const taxRate = project.taxEnabled ? project.taxPercentage / 100 : 0
@@ -404,7 +423,7 @@ export default function ProjectWorkspace() {
     const margin = proposedPrice > 0 ? ((proposedPrice - cost) / proposedPrice) * 100 : 0
 
     return { proposedPrice, additionalCost: tax, cost, roi, margin }
-  }, [assignments, project.proposedPrice, project.taxEnabled, project.taxPercentage])
+  }, [localAssignments, project.proposedPrice, project.taxEnabled, project.taxPercentage])
 
   const formatCurrency = useCallback((amount: number) => {
     return `${project.currency.symbol}${amount.toLocaleString()}`
@@ -477,11 +496,8 @@ export default function ProjectWorkspace() {
     }
   }
 
-  const updateAssignment = async (id: number, field: string, value: string | number) => {
-    // Store the original value for rollback
-    const originalAssignment = assignments.find(assignment => assignment.id === id)
-    if (!originalAssignment) return
-
+  // Debounced API update function
+  const debouncedApiUpdate = useCallback(async (id: number, field: string, value: string | number) => {
     // Map frontend field names to database field names
     const dbFieldMap: { [key: string]: string } = {
       'daysAllocated': 'days_allocated',
@@ -489,14 +505,6 @@ export default function ProjectWorkspace() {
     }
 
     const dbField = dbFieldMap[field] || field
-    
-    // Apply optimistic update immediately
-    setAssignments(prev => prev.map(assignment => {
-      if (assignment.id === id) {
-        return { ...assignment, [dbField]: value }
-      }
-      return assignment
-    }))
 
     try {
       const updateData = { [dbField]: value }
@@ -510,7 +518,7 @@ export default function ProjectWorkspace() {
       if (response.ok) {
         const updatedAssignment = await response.json()
         
-        // Update local state with the response from database
+        // Update main state with the response from database
         setAssignments(prev => prev.map(assignment => {
           if (assignment.id === id) {
             return updatedAssignment
@@ -522,10 +530,12 @@ export default function ProjectWorkspace() {
         console.error('Failed to update assignment:', errorData)
         toast.error(`Failed to update assignment: ${errorData.error || 'Unknown error'}`)
         
-        // Rollback optimistic update on failure
-        setAssignments(prev => prev.map(assignment => {
+        // Rollback local state on failure
+        setLocalAssignments(prev => prev.map(assignment => {
           if (assignment.id === id) {
-            return originalAssignment
+            // Find the original value from main assignments state
+            const originalAssignment = assignments.find(a => a.id === id)
+            return originalAssignment || assignment
           }
           return assignment
         }))
@@ -534,15 +544,61 @@ export default function ProjectWorkspace() {
       console.error('Error updating assignment:', error)
       toast.error('Failed to update assignment')
       
-      // Rollback optimistic update on error
-      setAssignments(prev => prev.map(assignment => {
+      // Rollback local state on error
+      setLocalAssignments(prev => prev.map(assignment => {
         if (assignment.id === id) {
-          return originalAssignment
+          // Find the original value from main assignments state
+          const originalAssignment = assignments.find(a => a.id === id)
+          return originalAssignment || assignment
         }
         return assignment
       }))
     }
-  }
+  }, [projectId, assignments])
+
+  // Immediate UI update with debounced API call
+  const updateAssignment = useCallback((id: number, field: string, value: string | number) => {
+    // Map frontend field names to database field names
+    const dbFieldMap: { [key: string]: string } = {
+      'daysAllocated': 'days_allocated',
+      'bufferDays': 'buffer_days'
+    }
+
+    const dbField = dbFieldMap[field] || field
+    
+    // Update local state immediately for instant UI feedback with calculated values
+    setLocalAssignments(prev => prev.map(assignment => {
+      if (assignment.id === id) {
+        // Update the field that changed
+        const updatedAssignment = { ...assignment, [dbField]: value }
+        
+        // Recalculate total_mandays and allocated_budget immediately
+        const daysAllocated = field === 'daysAllocated' ? value : assignment.days_allocated
+        const bufferDays = field === 'bufferDays' ? value : assignment.buffer_days
+        const totalMandays = Number(daysAllocated) + Number(bufferDays)
+        const allocatedBudget = totalMandays * assignment.daily_rate
+        
+        return {
+          ...updatedAssignment,
+          total_mandays: totalMandays,
+          allocated_budget: allocatedBudget
+        }
+      }
+      return assignment
+    }))
+
+    // Clear existing timer for this field
+    const timerKey = `${id}-${field}`
+    if (debounceTimers.current[timerKey]) {
+      clearTimeout(debounceTimers.current[timerKey])
+    }
+
+    // Set new debounced timer
+    debounceTimers.current[timerKey] = setTimeout(() => {
+      debouncedApiUpdate(id, field, value)
+      delete debounceTimers.current[timerKey]
+    }, 500) // 500ms debounce delay
+  }, [debouncedApiUpdate])
 
   const handleDeleteAssignment = async (id: number) => {
     // Store the assignment for potential rollback
@@ -1346,64 +1402,69 @@ export default function ProjectWorkspace() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {assignments.map((assignment) => (
-                      <TableRow key={assignment.id}>
-                        <TableCell className="font-medium">{assignment.team_members?.name || 'Unknown'}</TableCell>
-                        <TableCell>{assignment.team_members?.roles?.name || 'No role'}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="text-xs">
-                            {formatLevel(assignment.team_members?.levels)}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Input
-                            type="number"
-                            value={assignment.daily_rate}
-                            disabled
-                            className="w-24 bg-slate-50"
-                            title="Rate is set from rate card and cannot be edited here"
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Input
-                            type="number"
-                            value={assignment.days_allocated || 0}
-                            onChange={(e) => updateAssignment(assignment.id, 'daysAllocated', parseInt(e.target.value) || 0)}
-                            className="w-20"
-                            min="0"
-                            step="1"
-                            placeholder="0"
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Input
-                            type="number"
-                            value={assignment.buffer_days || 0}
-                            onChange={(e) => updateAssignment(assignment.id, 'bufferDays', parseInt(e.target.value) || 0)}
-                            className="w-20"
-                            min="0"
-                            step="1"
-                            placeholder="0"
-                          />
-                        </TableCell>
-                        <TableCell className="font-mono">
-                          {assignment.total_mandays}
-                        </TableCell>
-                        <TableCell className="font-mono">
-                          {formatCurrency(assignment.allocated_budget)}
-                        </TableCell>
-                        <TableCell>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="text-red-600"
-                            onClick={() => handleDeleteAssignment(assignment.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {assignments.map((assignment) => {
+                      // Find the corresponding local assignment for immediate UI feedback
+                      const localAssignment = localAssignments.find(la => la.id === assignment.id) || assignment
+                      
+                      return (
+                        <TableRow key={assignment.id}>
+                          <TableCell className="font-medium">{assignment.team_members?.name || 'Unknown'}</TableCell>
+                          <TableCell>{assignment.team_members?.roles?.name || 'No role'}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-xs">
+                              {formatLevel(assignment.team_members?.levels)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              type="number"
+                              value={assignment.daily_rate}
+                              disabled
+                              className="w-24 bg-slate-50"
+                              title="Rate is set from rate card and cannot be edited here"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              type="number"
+                              value={localAssignment.days_allocated || 0}
+                              onChange={(e) => updateAssignment(assignment.id, 'daysAllocated', parseInt(e.target.value) || 0)}
+                              className="w-20"
+                              min="0"
+                              step="1"
+                              placeholder="0"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              type="number"
+                              value={localAssignment.buffer_days || 0}
+                              onChange={(e) => updateAssignment(assignment.id, 'bufferDays', parseInt(e.target.value) || 0)}
+                              className="w-20"
+                              min="0"
+                              step="1"
+                              placeholder="0"
+                            />
+                          </TableCell>
+                          <TableCell className="font-mono">
+                            {localAssignment.total_mandays}
+                          </TableCell>
+                          <TableCell className="font-mono">
+                            {formatCurrency(localAssignment.allocated_budget)}
+                          </TableCell>
+                          <TableCell>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="text-red-600"
+                              onClick={() => handleDeleteAssignment(assignment.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
                   </TableBody>
                 </Table>
               </CardContent>
