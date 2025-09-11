@@ -7,7 +7,7 @@ export const runtime = 'nodejs'
  * POST /api/currencies/sync
  * Sync currencies with external API and update exchange rates
  */
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
     await currencyService.syncWithExternalAPI()
 
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
  * GET /api/currencies/sync
  * Get sync status and last update information
  */
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const currencies = await currencyService.getActiveCurrencies()
     const baseCurrency = await currencyService.getBaseCurrency()

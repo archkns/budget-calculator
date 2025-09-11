@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
-import { RefreshCw, DollarSign, TrendingUp, TrendingDown, ArrowUpDown, Wifi, WifiOff, Clock, Database } from 'lucide-react'
+import { RefreshCw, TrendingUp, TrendingDown, ArrowUpDown, Wifi, WifiOff, Clock, Database } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface Currency {

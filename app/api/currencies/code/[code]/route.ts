@@ -9,10 +9,11 @@ export const runtime = 'nodejs'
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { code: string } }
+  { params }: { params: Promise<{ code: string }> }
 ) {
   try {
-    const code = params.code.toUpperCase()
+    const { code: codeParam } = await params
+    const code = codeParam.toUpperCase()
     
     if (!/^[A-Z]{3}$/.test(code)) {
       return NextResponse.json(
