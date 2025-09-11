@@ -8,15 +8,16 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Plus, Calculator, Users, FileText, Settings, Edit, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
-import { formatCurrency, formatDate } from '@/lib/utils'
+import { formatCurrency, formatDate, getCurrencySymbol } from '@/lib/utils'
 
 interface Project {
   id: number
   name: string
   client: string | null
   status: string
+  currency_code: string
   proposed_price: number | null
-  total_price: number
+  allocated_budget: number
   start_date: string | null
   end_date: string | null
   created_at: string
@@ -78,9 +79,19 @@ export default function Dashboard() {
     totalProjects: projects.length,
     activeProjects: projects.filter(p => p.status === 'ACTIVE').length,
     totalRevenue: projects
-      .filter(p => p.status !== 'DRAFT') // Exclude draft projects from revenue calculation
+      .filter(p => p.status !== 'DRAFT' && p.status !== 'CANCELLED') // Exclude draft and cancelled projects from revenue calculation
       .reduce((sum, p) => sum + (p.proposed_price || 0), 0),
-    avgROI: 0 // We'll calculate this when we have cost data
+    avgROI: (() => {
+      const activeProjects = projects.filter(p => p.status !== 'DRAFT' && p.status !== 'CANCELLED' && p.proposed_price && p.allocated_budget)
+      if (activeProjects.length === 0) return 0
+      
+      const totalROI = activeProjects.reduce((sum, p) => {
+        const roi = ((p.proposed_price! - p.allocated_budget) / p.allocated_budget) * 100
+        return sum + roi
+      }, 0)
+      
+      return totalROI / activeProjects.length
+    })()
   }
 
   return (
@@ -230,16 +241,16 @@ export default function Dashboard() {
                           {formatDate(project.end_date)}
                         </p>
                       </div>
-                      <div className="w-32 text-right mr-6">
-                        <p className="text-sm font-medium text-slate-900">Proposed</p>
+                      <div className="w-36 text-right mr-6">
+                        <p className="text-sm font-medium text-slate-900">Allocated Budget</p>
                         <p className="text-sm text-slate-600">
-                          {formatCurrency(project.proposed_price || 0)}
+                          {formatCurrency(project.allocated_budget || 0, project.currency_code)}
                         </p>
                       </div>
-                      <div className="w-36 text-right mr-6">
-                        <p className="text-sm font-medium text-slate-900">Total Price</p>
+                      <div className="w-32 text-right mr-6">
+                        <p className="text-sm font-medium text-slate-900">Proposed Price</p>
                         <p className="text-sm text-slate-600">
-                          {formatCurrency(project.total_price || 0)}
+                          {formatCurrency(project.proposed_price || 0, project.currency_code)}
                         </p>
                       </div>
                       <div className="w-20 flex items-center space-x-2">
@@ -345,7 +356,7 @@ export default function Dashboard() {
                   Rate Cards
                 </CardTitle>
                 <CardDescription>
-                  Configure daily rates for different roles and tiers
+                  Configure daily rates for different roles and levels
                 </CardDescription>
               </CardHeader>
             </Card>

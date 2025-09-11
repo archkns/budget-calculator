@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin, isSupabaseConfigured } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase'
 
 export async function GET(
   request: NextRequest,
@@ -16,31 +16,6 @@ export async function GET(
       )
     }
 
-    // Check if Supabase is configured
-    if (!isSupabaseConfigured) {
-      console.warn('Supabase not configured, returning mock response')
-      // Return mock data for development
-      const mockAssignments = [
-        {
-          id: 1,
-          project_id: projectId,
-          team_member_id: 1,
-          custom_name: 'John Doe',
-          custom_role: 'Senior Developer',
-          custom_tier: 'SENIOR',
-          daily_rate: 5000,
-          days_allocated: 20,
-          buffer_days: 5,
-          total_mandays: 25,
-          total_price: 125000,
-          start_date: '2025-01-15',
-          end_date: '2025-02-15',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }
-      ]
-      return NextResponse.json(mockAssignments)
-    }
 
     const { data: assignments, error } = await supabaseAdmin()
       .from('project_assignments')
@@ -49,13 +24,25 @@ export async function GET(
         team_members:team_member_id (
           id,
           name,
-          custom_role,
-          tier,
           default_rate_per_day,
           roles:role_id (
             id,
             name
+          ),
+          levels:level_id (
+            id,
+            name,
+            display_name
           )
+        ),
+        roles:role_id (
+          id,
+          name
+        ),
+        levels:level_id (
+          id,
+          name,
+          display_name
         )
       `)
       .eq('project_id', projectId)
@@ -111,25 +98,12 @@ export async function POST(
       )
     }
 
-    // Check if Supabase is configured
-    if (!isSupabaseConfigured) {
-      console.warn('Supabase not configured, returning mock response')
-      const mockAssignment = {
-        id: Date.now(),
-        project_id: projectId,
-        ...body,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }
-      return NextResponse.json(mockAssignment, { status: 201 })
-    }
 
     const assignmentData = {
       project_id: projectId,
       team_member_id: body.team_member_id || null,
-      custom_name: body.custom_name || null,
-      custom_role: body.custom_role || null,
-      custom_tier: body.custom_tier || null,
+      role_id: body.role_id || null,
+      level_id: body.level_id || null,
       daily_rate: parseFloat(body.daily_rate),
       days_allocated: parseInt(body.days_allocated) || 0,
       buffer_days: parseInt(body.buffer_days) || 0,
@@ -145,13 +119,25 @@ export async function POST(
         team_members:team_member_id (
           id,
           name,
-          custom_role,
-          tier,
           default_rate_per_day,
           roles:role_id (
             id,
             name
+          ),
+          levels:level_id (
+            id,
+            name,
+            display_name
           )
+        ),
+        roles:role_id (
+          id,
+          name
+        ),
+        levels:level_id (
+          id,
+          name,
+          display_name
         )
       `)
       .single()

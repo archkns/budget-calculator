@@ -1,7 +1,21 @@
 // Database table interfaces
+export interface Level {
+  id: number
+  name: string
+  display_name: string
+  description: string | null
+  sort_order: number
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
 export interface Role {
   id: number
   name: string
+  description: string | null
+  is_active: boolean
+  sort_order: number
   created_at: string
   updated_at: string
 }
@@ -9,7 +23,7 @@ export interface Role {
 export interface RateCard {
   id: number
   role_id: number
-  tier: 'TEAM_LEAD' | 'SENIOR' | 'JUNIOR'
+  level_id: number
   daily_rate: number
   is_active: boolean
   created_at: string
@@ -20,8 +34,7 @@ export interface TeamMember {
   id: number
   name: string
   role_id: number | null
-  custom_role: string | null
-  tier: 'TEAM_LEAD' | 'SENIOR' | 'JUNIOR' | null
+  level_id: number | null
   default_rate_per_day: number
   notes: string | null
   status: 'ACTIVE' | 'INACTIVE'
@@ -34,20 +47,20 @@ export interface Project {
   name: string
   client: string | null
   currency_code: string
-  currency_symbol: string
   hours_per_day: number
   tax_enabled: boolean
   tax_percentage: number
   proposed_price: number | null
-  total_price: number
+  allocated_budget: number
   working_week: string
+  custom_working_days: string[] | null
   execution_days: number
   buffer_days: number
   guarantee_days: number
   start_date: string | null
   end_date: string | null
-  calendar_mode: boolean
   status: 'ACTIVE' | 'DRAFT' | 'COMPLETED' | 'CANCELLED'
+  template_id: number | null
   created_at: string
   updated_at: string
 }
@@ -56,14 +69,13 @@ export interface ProjectAssignment {
   id: number
   project_id: number
   team_member_id: number | null
-  custom_name: string | null
-  custom_role: string | null
-  custom_tier: 'TEAM_LEAD' | 'SENIOR' | 'JUNIOR' | null
+  role_id: number | null
+  level_id: number | null
   daily_rate: number
   days_allocated: number
   buffer_days: number
   total_mandays: number
-  total_price: number
+  allocated_budget: number
   start_date: string | null
   end_date: string | null
   created_at: string
@@ -79,27 +91,18 @@ export interface PublicHoliday {
   created_at: string
 }
 
-export interface ProjectTemplate {
-  id: number
-  name: string
-  description: string | null
-  template_data: Record<string, unknown>
-  created_at: string
-  updated_at: string
-}
-
 // Create/Update data interfaces
 export interface CreateProjectData {
   name: string
   client?: string
   currency_code?: string
-  currency_symbol?: string
   hours_per_day?: number
   tax_enabled?: boolean
   tax_percentage?: number
   proposed_price?: number
-  total_price?: number
+  allocated_budget?: number
   working_week?: string
+  custom_working_days?: string[]
   execution_days?: number
   buffer_days?: number
   guarantee_days?: number
@@ -114,8 +117,7 @@ export interface UpdateProjectData extends Partial<CreateProjectData> {
 export interface CreateTeamMemberData {
   name: string
   role_id?: number
-  custom_role?: string
-  tier?: 'TEAM_LEAD' | 'SENIOR' | 'JUNIOR'
+  level_id?: number
   default_rate_per_day: number
   notes?: string
   status?: 'ACTIVE' | 'INACTIVE'
@@ -136,7 +138,7 @@ export interface UpdateRoleData {
 
 export interface CreateRateCardData {
   role_id: number
-  tier: 'TEAM_LEAD' | 'SENIOR' | 'JUNIOR'
+  level_id: number
   daily_rate: number
   is_active?: boolean
 }

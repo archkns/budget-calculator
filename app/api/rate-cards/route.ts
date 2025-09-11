@@ -1,16 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin, handleSupabaseError, isSupabaseConfigured } from '@/lib/supabase';
+import { supabaseAdmin, handleSupabaseError } from '@/lib/supabase';
 import { RateCardSchema } from '@/lib/schemas';
 
 export const runtime = 'nodejs';
 
 export async function GET() {
   try {
-    // Check if Supabase is configured
-    if (!isSupabaseConfigured) {
-      console.warn('Supabase not configured, returning empty array')
-      return NextResponse.json([])
-    }
 
     let rateCards, error;
     try {
@@ -21,10 +16,15 @@ export async function GET() {
           roles:role_id (
             id,
             name
+          ),
+          levels:level_id (
+            id,
+            name,
+            display_name
           )
         `)
         .order('role_id', { ascending: true })
-        .order('tier', { ascending: true });
+        .order('level_id', { ascending: true });
       
       rateCards = result.data;
       error = result.error;
@@ -77,22 +77,6 @@ export async function POST(request: NextRequest) {
     
     const validatedData = RateCardSchema.omit({ id: true, created_at: true, updated_at: true }).parse(body as Record<string, unknown>);
 
-    // Check if Supabase is configured
-    if (!isSupabaseConfigured) {
-      console.warn('Supabase not configured, returning mock response')
-      // Return a mock response for development
-      const mockRateCard = {
-        id: Date.now(),
-        role_id: validatedData.role_id,
-        tier: validatedData.tier,
-        daily_rate: validatedData.daily_rate,
-        is_active: validatedData.is_active ?? true,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        roles: { id: validatedData.role_id, name: 'Mock Role' }
-      }
-      return NextResponse.json(mockRateCard, { status: 201 })
-    }
 
     let newRateCard, error;
     try {
@@ -100,7 +84,7 @@ export async function POST(request: NextRequest) {
         .from('rate_cards')
         .insert({
           role_id: validatedData.role_id,
-          tier: validatedData.tier,
+          level_id: validatedData.level_id,
           daily_rate: validatedData.daily_rate,
           is_active: validatedData.is_active ?? true
         })
@@ -109,6 +93,11 @@ export async function POST(request: NextRequest) {
           roles:role_id (
             id,
             name
+          ),
+          levels:level_id (
+            id,
+            name,
+            display_name
           )
         `)
         .single();

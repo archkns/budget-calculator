@@ -14,20 +14,20 @@ import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { InteractiveGantt } from '@/components/ui/interactive-gantt'
-import { Calculator, Plus, Trash2, FileText, TrendingUp, TrendingDown, CalendarIcon, Edit, Check, AlertTriangle } from 'lucide-react'
+import { Calculator, Plus, Trash2, FileText, TrendingUp, TrendingDown, CalendarIcon, Edit, Check, AlertTriangle, Copy } from 'lucide-react'
 import { format, addDays, isWeekend, differenceInDays } from 'date-fns'
 import { toast } from 'sonner'
 import { RealtimeCurrencyConverter } from "@/components/ui/realtime-currency-converter"
 import { InlineEdit } from '@/components/ui/inline-edit'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { formatTier } from '@/lib/utils'
+import { formatLevel } from '@/lib/utils'
 
 interface TeamMember {
   id: number
   name: string
-  custom_role?: string
-  tier?: string
+  role_id?: number | null
+  level_id?: number | null
   default_rate_per_day: number
   status: 'ACTIVE' | 'INACTIVE'
   notes?: string
@@ -35,20 +35,24 @@ interface TeamMember {
     id: number
     name: string
   }
+  levels?: {
+    id: number
+    name: string
+    display_name: string
+  }
 }
 
 interface ProjectAssignment {
   id: number
   project_id: number
   team_member_id?: number
-  custom_name?: string
-  custom_role?: string
-  custom_tier?: 'TEAM_LEAD' | 'SENIOR' | 'JUNIOR'
+  role_id?: number
+  level_id?: number
   daily_rate: number
   days_allocated: number
   buffer_days: number
   total_mandays: number
-  total_price: number
+  allocated_budget: number
   start_date?: string
   end_date?: string
   created_at: string
@@ -57,13 +61,26 @@ interface ProjectAssignment {
   team_members?: {
     id: number
     name: string
-    custom_role?: string
-    tier?: string
     default_rate_per_day: number
     roles?: {
       id: number
       name: string
     }
+    levels?: {
+      id: number
+      name: string
+      display_name: string
+    }
+  }
+  // Direct role and level data
+  roles?: {
+    id: number
+    name: string
+  }
+  levels?: {
+    id: number
+    name: string
+    display_name: string
   }
 }
 
@@ -127,6 +144,11 @@ export default function ProjectWorkspace() {
   const [showStatusEdit, setShowStatusEdit] = useState(false)
   const [selectedNewStatus, setSelectedNewStatus] = useState<'ACTIVE' | 'DRAFT' | 'COMPLETED' | 'CANCELLED'>('ACTIVE')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [showDuplicateDialog, setShowDuplicateDialog] = useState(false)
+  const [duplicateProjectName, setDuplicateProjectName] = useState('')
+  const [duplicateClient, setDuplicateClient] = useState('')
+  const [duplicateStartDate, setDuplicateStartDate] = useState<Date | undefined>(undefined)
+  const [duplicateEndDate, setDuplicateEndDate] = useState<Date | undefined>(undefined)
 
   // Initialize selected new status when status edit dialog opens
   useEffect(() => {
@@ -150,7 +172,7 @@ export default function ProjectWorkspace() {
           taxEnabled: projectData.tax_enabled,
           taxPercentage: projectData.tax_percentage,
           proposedPrice: projectData.proposed_price || 0,
-          totalPrice: projectData.total_price || 0,
+          totalPrice: projectData.allocated_budget || 0,
           startDate: projectData.start_date ? new Date(projectData.start_date) : new Date(),
           executionDays: projectData.execution_days || 0,
           guaranteePeriod: projectData.guarantee_days || 30,
@@ -374,9 +396,9 @@ export default function ProjectWorkspace() {
   }
 
   const summary = useMemo((): ProjectSummary => {
-    const subtotal = assignments.reduce((sum, assignment) => sum + assignment.total_price, 0)
+    const subtotal = assignments.reduce((sum, assignment) => sum + assignment.allocated_budget, 0)
     const additionalCost = 98700 // Fixed additional cost
-    // Use database-calculated total_price if available, otherwise calculate manually
+    // Use database-calculated allocated_budget if available, otherwise calculate manually
     const cost = project.totalPrice || (subtotal + additionalCost)
     const proposedPrice = project.proposedPrice
     
@@ -398,9 +420,9 @@ export default function ProjectWorkspace() {
     try {
       const assignmentData = {
         team_member_id: teamMember.id,
+        role_id: teamMember.role_id,
         custom_name: teamMember.name,
-        custom_role: teamMember.roles?.name || teamMember.custom_role || 'No role',
-        custom_tier: teamMember.tier || 'JUNIOR',
+        level_id: teamMember.level_id,
         daily_rate: teamMember.default_rate_per_day,
         days_allocated: 0,
         buffer_days: 0,
@@ -716,6 +738,43 @@ export default function ProjectWorkspace() {
     }
   }
 
+  const handleDuplicateProject = async () => {
+    try {
+      const response = await fetch(`/api/projects/${projectId}/duplicate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: duplicateProjectName || `${project.name} (Copy)`,
+          client: duplicateClient || project.client,
+          startDate: duplicateStartDate?.toISOString().split('T')[0] || null,
+          endDate: duplicateEndDate?.toISOString().split('T')[0] || null
+        }),
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        toast.success(`Project duplicated successfully! ${result.duplicatedAssignments} assignments copied.`)
+        setShowDuplicateDialog(false)
+        // Reset form
+        setDuplicateProjectName('')
+        setDuplicateClient('')
+        setDuplicateStartDate(undefined)
+        setDuplicateEndDate(undefined)
+        // Redirect to the new project
+        router.push(`/projects/${result.project.id}`)
+      } else {
+        const errorData = await response.json()
+        console.error('Duplicate project error:', errorData)
+        toast.error(`Failed to duplicate project: ${errorData.error || 'Unknown error'}`)
+      }
+    } catch (error) {
+      console.error('Error duplicating project:', error)
+      toast.error('Failed to duplicate project')
+    }
+  }
+
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
@@ -733,6 +792,101 @@ export default function ProjectWorkspace() {
             <div className="flex items-center space-x-3">
               <Button variant="outline" onClick={handleSaveDraft}>Save Draft</Button>
               <Button onClick={handleSaveProject}>Save Project</Button>
+              <Dialog open={showDuplicateDialog} onOpenChange={setShowDuplicateDialog}>
+                <DialogTrigger asChild>
+                  <Button variant="outline">
+                    <Copy className="h-4 w-4 mr-2" />
+                    Duplicate
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[425px]">
+                  <DialogHeader>
+                    <DialogTitle>Duplicate Project</DialogTitle>
+                    <DialogDescription>
+                      Create a copy of this project with all assignments and settings.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="grid gap-4 py-4">
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="duplicate-name" className="text-right">
+                        Name
+                      </Label>
+                      <Input
+                        id="duplicate-name"
+                        value={duplicateProjectName}
+                        onChange={(e) => setDuplicateProjectName(e.target.value)}
+                        placeholder={`${project.name} (Copy)`}
+                        className="col-span-3"
+                      />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="duplicate-client" className="text-right">
+                        Client
+                      </Label>
+                      <Input
+                        id="duplicate-client"
+                        value={duplicateClient}
+                        onChange={(e) => setDuplicateClient(e.target.value)}
+                        placeholder={project.client || 'Enter client name'}
+                        className="col-span-3"
+                      />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label className="text-right">Start Date</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className="col-span-3 justify-start text-left font-normal"
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {duplicateStartDate ? format(duplicateStartDate, 'PPP') : 'Select start date'}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={duplicateStartDate}
+                            onSelect={setDuplicateStartDate}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label className="text-right">End Date</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className="col-span-3 justify-start text-left font-normal"
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {duplicateEndDate ? format(duplicateEndDate, 'PPP') : 'Select end date'}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={duplicateEndDate}
+                            onSelect={setDuplicateEndDate}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setShowDuplicateDialog(false)}>
+                      Cancel
+                    </Button>
+                    <Button onClick={handleDuplicateProject}>
+                      <Copy className="h-4 w-4 mr-2" />
+                      Duplicate Project
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
               <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
                 <DialogTrigger asChild>
                   <Button variant="destructive">
@@ -1091,7 +1245,7 @@ export default function ProjectWorkspace() {
                               .filter(member => member.status === 'ACTIVE')
                               .map(member => (
                                 <SelectItem key={member.id} value={member.id.toString()}>
-                                  {member.name} - {member.roles?.name || member.custom_role || 'No role'}
+                                  {member.name} - {member.roles?.name || 'No role'}
                                 </SelectItem>
                               ))
                             }
@@ -1135,7 +1289,7 @@ export default function ProjectWorkspace() {
                         <TableCell>{assignment.custom_role || assignment.team_members?.roles?.name || assignment.team_members?.custom_role || 'No role'}</TableCell>
                         <TableCell>
                           <Badge variant="outline" className="text-xs">
-                            {formatTier(assignment.custom_tier || assignment.team_members?.tier)}
+                            {formatLevel(assignment.levels || assignment.team_members?.levels)}
                           </Badge>
                         </TableCell>
                         <TableCell>
@@ -1167,7 +1321,7 @@ export default function ProjectWorkspace() {
                           {assignment.total_mandays}
                         </TableCell>
                         <TableCell className="font-mono">
-                          {formatCurrency(assignment.total_price)}
+                          {formatCurrency(assignment.allocated_budget)}
                         </TableCell>
                         <TableCell>
                           <Button 

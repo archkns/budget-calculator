@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin, isSupabaseConfigured } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase'
 
 export async function PUT(
   request: NextRequest,
@@ -19,11 +19,6 @@ export async function PUT(
 
     const body = await request.json()
     
-    // Check if Supabase is configured
-    if (!isSupabaseConfigured) {
-      console.warn('Supabase not configured, returning mock response')
-      return NextResponse.json({ message: 'Assignment updated successfully' })
-    }
 
     const updateData: {
       daily_rate?: number;
@@ -31,9 +26,8 @@ export async function PUT(
       buffer_days?: number;
       start_date?: string;
       end_date?: string;
-      custom_name?: string;
-      custom_role?: string;
-      custom_tier?: string;
+      role_id?: number;
+      level_id?: number;
     } = {}
     
     // Map frontend fields to database fields
@@ -42,9 +36,8 @@ export async function PUT(
     if (body.bufferDays !== undefined) updateData.buffer_days = parseInt(body.bufferDays)
     if (body.startDate !== undefined) updateData.start_date = body.startDate
     if (body.endDate !== undefined) updateData.end_date = body.endDate
-    if (body.customName !== undefined) updateData.custom_name = body.customName
-    if (body.customRole !== undefined) updateData.custom_role = body.customRole
-    if (body.customTier !== undefined) updateData.custom_tier = body.customTier
+    if (body.roleId !== undefined) updateData.role_id = body.roleId
+    if (body.levelId !== undefined) updateData.level_id = body.levelId
 
     const { data: updatedAssignment, error } = await supabaseAdmin()
       .from('project_assignments')
@@ -59,13 +52,25 @@ export async function PUT(
         team_members:team_member_id (
           id,
           name,
-          custom_role,
-          tier,
           default_rate_per_day,
           roles:role_id (
             id,
             name
+          ),
+          levels:level_id (
+            id,
+            name,
+            display_name
           )
+        ),
+        roles:role_id (
+          id,
+          name
+        ),
+        levels:level_id (
+          id,
+          name,
+          display_name
         )
       `)
       .single()
@@ -104,11 +109,6 @@ export async function DELETE(
       )
     }
 
-    // Check if Supabase is configured
-    if (!isSupabaseConfigured) {
-      console.warn('Supabase not configured, returning mock response')
-      return NextResponse.json({ message: 'Assignment deleted successfully' })
-    }
 
     const { error } = await supabaseAdmin()
       .from('project_assignments')

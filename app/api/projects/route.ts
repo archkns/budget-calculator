@@ -1,14 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin, isSupabaseConfigured } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase'
 import { CreateProjectData } from '@/lib/types/database'
 
 export async function GET() {
   try {
-    // Check if Supabase is configured
-    if (!isSupabaseConfigured) {
-      console.warn('Supabase not configured, returning empty array')
-      return NextResponse.json([])
-    }
 
     const { data: projects, error } = await supabaseAdmin()
       .from('projects')
@@ -70,44 +65,17 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    // Check if Supabase is configured
-    if (!isSupabaseConfigured) {
-      console.warn('Supabase not configured, returning mock response')
-      // Return a mock response for development
-      const mockProject = {
-        id: Date.now(),
-        name: projectData.name,
-        client: projectData.client || null,
-        currency_code: projectData.currency_code || 'THB',
-        currency_symbol: projectData.currency_symbol || '฿',
-        hours_per_day: projectData.hours_per_day || 7,
-        tax_enabled: projectData.tax_enabled || false,
-        tax_percentage: projectData.tax_percentage || 7,
-        proposed_price: projectData.proposed_price || null,
-        total_price: projectData.total_price || 0,
-        working_week: projectData.working_week || 'MON_TO_FRI',
-        execution_days: projectData.execution_days || 0,
-        buffer_days: projectData.buffer_days || 0,
-        guarantee_days: projectData.guarantee_days || 30,
-        start_date: projectData.start_date || null,
-        status: projectData.status || 'ACTIVE',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }
-      return NextResponse.json(mockProject, { status: 201 })
-    }
     
     // Prepare data for database insertion
     const insertData = {
       name: projectData.name,
       client: projectData.client || null,
       currency_code: projectData.currency_code || 'THB',
-      currency_symbol: projectData.currency_symbol || '฿',
       hours_per_day: projectData.hours_per_day || 7,
       tax_enabled: projectData.tax_enabled || false,
       tax_percentage: projectData.tax_percentage || 7,
       proposed_price: projectData.proposed_price || null,
-      total_price: projectData.total_price || 0, // Will be calculated by triggers
+      allocated_budget: projectData.allocated_budget || 0, // Will be calculated by triggers
       working_week: projectData.working_week || 'MON_TO_FRI',
       execution_days: projectData.execution_days || 0,
       buffer_days: projectData.buffer_days || 0,

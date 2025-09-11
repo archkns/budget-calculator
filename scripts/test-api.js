@@ -72,8 +72,7 @@ async function runTests() {
   const projectResult = await testEndpoint('/projects', 'POST', {
     name: 'Test Project',
     client: 'Test Client',
-    currency_code: 'THB',
-    currency_symbol: '฿'
+    currency_code: 'THB'
   });
 
   if (projectResult.success) {

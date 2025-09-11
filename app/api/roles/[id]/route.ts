@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin, handleSupabaseError, isSupabaseConfigured } from '@/lib/supabase';
+import { supabaseAdmin, handleSupabaseError } from '@/lib/supabase';
 import { RoleSchema } from '@/lib/schemas';
 
 export const runtime = 'nodejs';
@@ -16,18 +16,6 @@ export async function GET(
       return NextResponse.json({ error: 'Invalid role ID' }, { status: 400 });
     }
 
-    // Check if Supabase is configured
-    if (!isSupabaseConfigured) {
-      console.warn('Supabase not configured, returning mock role')
-      // Return mock role for development
-      const mockRole = {
-        id: id,
-        name: 'Mock Role',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }
-      return NextResponse.json(mockRole)
-    }
 
     let role, error;
     try {
@@ -102,18 +90,6 @@ export async function PUT(
     
     const validatedData = RoleSchema.omit({ id: true, created_at: true, updated_at: true }).parse(body as Record<string, unknown>);
 
-    // Check if Supabase is configured
-    if (!isSupabaseConfigured) {
-      console.warn('Supabase not configured, returning mock response')
-      // Return a mock response for development
-      const mockRole = {
-        id: id,
-        name: validatedData.name,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }
-      return NextResponse.json(mockRole)
-    }
 
     let updatedRole, error;
     try {
@@ -171,11 +147,6 @@ export async function DELETE(
       return NextResponse.json({ error: 'Invalid role ID' }, { status: 400 });
     }
 
-    // Check if Supabase is configured
-    if (!isSupabaseConfigured) {
-      console.warn('Supabase not configured, returning mock response')
-      return NextResponse.json({ message: 'Role deleted successfully' })
-    }
     
     // Check if role is referenced by team members or rate cards
     try {

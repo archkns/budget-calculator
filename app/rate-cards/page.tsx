@@ -7,12 +7,13 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Calculator, Edit, X, Check } from 'lucide-react'
 import Link from 'next/link'
-import { formatTier } from '@/lib/utils'
+import { formatLevel } from '@/lib/utils'
 
 interface RateCard {
   id: number
   role_name: string
-  tier: string
+  level_name: string
+  level_display_name: string
   daily_rate: number
   is_active: boolean
 }
@@ -31,10 +32,11 @@ export default function RateCards() {
         if (response.ok) {
           const data = await response.json()
           // Transform the data to match the expected format
-          const transformedData = data.map((card: { id: number; roles?: { name: string }; tier: string; daily_rate: number; is_active: boolean }) => ({
+          const transformedData = data.map((card: { id: number; roles?: { name: string }; levels?: { name: string; display_name: string }; daily_rate: number; is_active: boolean }) => ({
             id: card.id,
             role_name: card.roles?.name || 'Unknown Role',
-            tier: card.tier,
+            level_name: card.levels?.name || 'Unknown Level',
+            level_display_name: card.levels?.display_name || 'Unknown Level',
             daily_rate: card.daily_rate,
             is_active: card.is_active
           }))
@@ -159,7 +161,7 @@ export default function RateCards() {
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold text-slate-900">Rate Cards</h1>
-            <p className="text-slate-600 mt-2">Manage daily rates for different roles and tiers</p>
+            <p className="text-slate-600 mt-2">Manage daily rates for different roles and levels</p>
           </div>
           
           <div className="flex items-center space-x-3">
@@ -232,7 +234,7 @@ export default function RateCards() {
                   <CardTitle className="flex items-center justify-between">
                     <span>{roleName}</span>
                     <Badge variant="outline">
-                      {cards.filter(c => c.is_active).length} active tiers
+                      {cards.filter(c => c.is_active).length} active levels
                     </Badge>
                   </CardTitle>
                   <CardDescription>
@@ -241,25 +243,11 @@ export default function RateCards() {
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {['TEAM_LEAD', 'SENIOR', 'JUNIOR'].map(tier => {
-                      const card = cards.find(c => c.tier === tier)
-                      
-                      if (!card) {
-                        return (
-                          <div key={tier} className="p-4 border-2 border-dashed border-slate-200 rounded-lg text-center">
-                            <p className="text-slate-500 text-sm mb-2">{formatTier(tier)}</p>
-                            <p className="text-slate-400 text-xs">Not Available</p>
-                            <Button variant="ghost" size="sm" className="mt-2 text-xs">
-                              Add Rate
-                            </Button>
-                          </div>
-                        )
-                      }
-
+                    {cards.map(card => {
                       return (
                         <div key={card.id} className={`p-4 border rounded-lg ${card.is_active ? 'border-slate-200 bg-white' : 'border-slate-100 bg-slate-50'}`}>
                           <div className="flex items-center justify-between mb-2">
-                            <h4 className="font-medium text-slate-900">{formatTier(card.tier)}</h4>
+                            <h4 className="font-medium text-slate-900">{card.level_display_name}</h4>
                             <Badge variant={card.is_active ? 'default' : 'secondary'}>
                               {card.is_active ? 'Active' : 'Inactive'}
                             </Badge>

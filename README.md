@@ -10,7 +10,7 @@ A comprehensive internal-only web application for project cost estimation, team 
 
 ### Core Functionality
 - **Project Cost Estimation**: Calculate project costs with team allocations, rates, and multipliers
-- **Team Library Management**: CRUD operations for team members with roles, tiers, and rates
+- **Team Library Management**: CRUD operations for team members with roles, levels, and rates
 - **Rate Card System**: Manage daily rates for different roles and experience levels
 - **Financial Calculations**: ROI%, Margin%, tax calculations with Decimal.js precision
 - **Day Configuration**: Execution days, buffer days, calendar mode with holiday handling
@@ -18,7 +18,7 @@ A comprehensive internal-only web application for project cost estimation, team 
 ### Key Pages
 1. **Dashboard** (`/`) - Project overview with stats and recent projects
 2. **Team Library** (`/team`) - Manage team members with search, filter, and pagination
-3. **Rate Cards** (`/rate-cards`) - Configure daily rates by role and tier
+3. **Rate Cards** (`/rate-cards`) - Configure daily rates by role and level
 4. **Project Workspace** (`/projects/[id]`) - Detailed project management with tabs
 
 ### Advanced Features
@@ -91,7 +91,7 @@ Execution Days = max(0, Final Days - Buffer Days)
 
 ### Core Tables
 - **roles** - Role definitions (Project Director, Frontend Dev, etc.)
-- **rate_cards** - Daily rates by role and tier
+- **rate_cards** - Daily rates by role and level
 - **team_members** - Team library with default rates
 - **projects** - Project configurations and settings
 - **project_assignments** - Team member allocations per project
@@ -102,7 +102,7 @@ Execution Days = max(0, Final Days - Buffer Days)
 - **Automatic timestamps** with triggers
 - **Referential integrity** with foreign keys
 - **Performance indexes** on frequently queried columns
-- **Enum types** for tier levels and status values
+- **Enum types** for level types and status values
 
 ## 🚀 Getting Started
 

@@ -13,20 +13,23 @@ import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { Plus, Search, Upload, Download, Edit, Trash2, Calculator } from 'lucide-react'
 import Link from 'next/link'
-import { formatTier } from '@/lib/utils'
+import { formatLevel } from '@/lib/utils'
 import { toast } from 'sonner'
 
 interface TeamMember {
   id: number
   name: string
-  custom_role?: string
-  tier?: string
   default_rate_per_day: number
   status: string
   notes?: string
   roles?: {
     id: number
     name: string
+  }
+  levels?: {
+    id: number
+    name: string
+    display_name: string
   }
 }
 
@@ -188,7 +191,7 @@ export default function TeamLibrary() {
           <CardHeader>
             <CardTitle>Team Members ({filteredMembers.length})</CardTitle>
             <CardDescription>
-              Manage your team library with roles, tiers, and default rates
+              Manage your team library with roles, levels, and default rates
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -217,7 +220,7 @@ export default function TeamLibrary() {
                           <Badge variant="outline" className="ml-2 text-xs">Custom</Badge>
                         )}
                       </TableCell>
-                      <TableCell>{formatTier(member.tier)}</TableCell>
+                      <TableCell>{formatLevel(member.levels)}</TableCell>
                       <TableCell className="font-mono">{formatCurrency(member.default_rate_per_day)}</TableCell>
                       <TableCell>
                         <Badge variant={member.status === 'ACTIVE' ? 'default' : 'secondary'}>
@@ -260,7 +263,7 @@ function AddTeamMemberForm({ onClose }: { onClose: () => void }) {
     name: '',
     role: '',
     customRole: '',
-    tier: '',
+    level: '',
     defaultRate: '',
     notes: '',
     status: 'ACTIVE'
@@ -328,7 +331,7 @@ function AddTeamMemberForm({ onClose }: { onClose: () => void }) {
     if (!newLevelName.trim()) return
     
     // Add the new level to the form data
-    setFormData(prev => ({ ...prev, tier: newLevelName.trim().toUpperCase() }))
+    setFormData(prev => ({ ...prev, level: newLevelName.trim().toUpperCase() }))
     setNewLevelName('')
     setShowNewLevelInput(false)
     toast.success(`Level "${newLevelName.trim().toUpperCase()}" added successfully`)
@@ -350,8 +353,7 @@ function AddTeamMemberForm({ onClose }: { onClose: () => void }) {
         body: JSON.stringify({
           name: formData.name,
           role_id: formData.role === 'custom' ? null : selectedRole?.id,
-          custom_role: formData.role === 'custom' ? formData.customRole : null,
-          tier: formData.tier,
+          level_id: formData.level,
           default_rate_per_day: parseFloat(formData.defaultRate),
           notes: formData.notes,
           status: formData.status
@@ -391,12 +393,12 @@ function AddTeamMemberForm({ onClose }: { onClose: () => void }) {
         </div>
         
         <div>
-          <Label htmlFor="tier">Level</Label>
-          <Select value={formData.tier} onValueChange={(value) => {
+          <Label htmlFor="level">Level</Label>
+          <Select value={formData.level} onValueChange={(value) => {
             if (value === 'add_new') {
               setShowNewLevelInput(true)
             } else {
-              setFormData({ ...formData, tier: value })
+              setFormData({ ...formData, level: value })
             }
           }}>
             <SelectTrigger>

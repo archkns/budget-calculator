@@ -2,99 +2,24 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin, handleSupabaseError } from '@/lib/supabase'
 import { TeamMemberFormSchema } from '@/lib/schemas'
 
-export async function GET(request: NextRequest) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
+    const { id } = params
 
-    const { searchParams } = new URL(request.url)
-    const status = searchParams.get('status')
-
-    // Build query with optional status filter
-    let query;
-    try {
-      query = supabaseAdmin()
-        .from('team_members')
-        .select(`
-          *,
-          roles:role_id (
-            id,
-            name
-          )
-        `)
-        .order('name', { ascending: true });
-    } catch (supabaseError) {
-      console.error('Supabase client initialization error:', supabaseError)
+    if (!id || isNaN(Number(id))) {
       return NextResponse.json(
-        { error: 'Database connection failed' },
-        { status: 500 }
-      )
-    }
-
-    if (status) {
-      query = query.eq('status', status.toUpperCase());
-    }
-
-    const { data: teamMembers, error } = await query;
-
-    if (error) {
-      const errorResponse = handleSupabaseError(error, 'fetch team members');
-      return NextResponse.json(
-        { error: errorResponse.error },
-        { status: errorResponse.status }
-      );
-    }
-
-    const response = NextResponse.json(teamMembers || []);
-    
-    // Add cache headers for client-side caching
-    response.headers.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
-    
-    return response;
-  } catch (error) {
-    console.error('Error fetching team members:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch team members' },
-      { status: 500 }
-    );
-  }
-}
-
-export async function POST(request: NextRequest) {
-  try {
-    // Parse JSON body with proper error handling
-    let body: unknown
-    try {
-      const text = await request.text()
-      if (!text || text.trim() === '') {
-        return NextResponse.json(
-          { error: 'Request body is required' },
-          { status: 400 }
-        )
-      }
-      body = JSON.parse(text)
-    } catch (parseError) {
-      console.error('JSON parsing error:', parseError)
-      return NextResponse.json(
-        { error: 'Invalid JSON in request body' },
+        { error: 'Valid team member ID is required' },
         { status: 400 }
       )
     }
-    
-    // Validate the request body
-    const validatedData = TeamMemberFormSchema.parse(body as Record<string, unknown>)
 
-
-    let newMember, error;
+    let teamMember, error;
     try {
       const result = await supabaseAdmin()
         .from('team_members')
-        .insert({
-          name: validatedData.name,
-          role_id: validatedData.role_id,
-          level_id: validatedData.level_id,
-          default_rate_per_day: validatedData.default_rate_per_day,
-          notes: validatedData.notes,
-          status: validatedData.status || 'ACTIVE'
-        })
         .select(`
           *,
           roles:role_id (
@@ -107,9 +32,10 @@ export async function POST(request: NextRequest) {
             display_name
           )
         `)
+        .eq('id', id)
         .single()
       
-      newMember = result.data;
+      teamMember = result.data;
       error = result.error;
     } catch (supabaseError) {
       console.error('Supabase client initialization error:', supabaseError)
@@ -120,31 +46,40 @@ export async function POST(request: NextRequest) {
     }
 
     if (error) {
-      const errorResponse = handleSupabaseError(error, 'create team member');
+      const errorResponse = handleSupabaseError(error, 'fetch team member');
       return NextResponse.json(
         { error: errorResponse.error },
         { status: errorResponse.status }
       );
     }
 
-    return NextResponse.json(newMember, { status: 201 })
+    if (!teamMember) {
+      return NextResponse.json(
+        { error: 'Team member not found' },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(teamMember)
   } catch (error) {
-    console.error('Error creating team member:', error)
+    console.error('Error fetching team member:', error);
     return NextResponse.json(
-      { error: 'Failed to create team member' },
+      { error: 'Failed to fetch team member' },
       { status: 500 }
-    )
+    );
   }
 }
 
-export async function PUT(request: NextRequest) {
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
-    const { searchParams } = new URL(request.url)
-    const id = searchParams.get('id')
-    
-    if (!id) {
+    const { id } = params
+
+    if (!id || isNaN(Number(id))) {
       return NextResponse.json(
-        { error: 'Team member ID is required' },
+        { error: 'Valid team member ID is required' },
         { status: 400 }
       )
     }
@@ -181,6 +116,11 @@ export async function PUT(request: NextRequest) {
           roles:role_id (
             id,
             name
+          ),
+          levels:level_id (
+            id,
+            name,
+            display_name
           )
         `)
         .single()
@@ -220,14 +160,16 @@ export async function PUT(request: NextRequest) {
   }
 }
 
-export async function DELETE(request: NextRequest) {
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
-    const { searchParams } = new URL(request.url)
-    const id = searchParams.get('id')
-    
-    if (!id) {
+    const { id } = params
+
+    if (!id || isNaN(Number(id))) {
       return NextResponse.json(
-        { error: 'Team member ID is required' },
+        { error: 'Valid team member ID is required' },
         { status: 400 }
       )
     }

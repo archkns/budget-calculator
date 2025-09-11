@@ -22,7 +22,7 @@ describe('Calculation Functions', () => {
         days_allocated: 10,
         buffer_days: 0,
         total_mandays: 10,
-        total_price: 150000
+        allocated_budget: 150000
       };
 
       const result = calculateAssignmentCost(assignment);
@@ -38,7 +38,7 @@ describe('Calculation Functions', () => {
         days_allocated: 10,
         buffer_days: 2,
         total_mandays: 12,
-        total_price: 180000
+        allocated_budget: 180000
       };
 
       const result = calculateAssignmentCost(assignment);
@@ -55,7 +55,7 @@ describe('Calculation Functions', () => {
         days_allocated: 5,
         buffer_days: 1,
         total_mandays: 6,
-        total_price: 120000
+        allocated_budget: 120000
       };
 
       const result = calculateAssignmentCost(assignment);
@@ -70,14 +70,13 @@ describe('Calculation Functions', () => {
       id: 1,
       name: 'Test Project',
       currency_code: 'THB',
-      currency_symbol: '฿',
       hours_per_day: 7,
       tax_enabled: true,
       tax_percentage: 7,
       proposed_price: 300000,
+      allocated_budget: 250000,
       execution_days: 30,
       buffer_days: 5,
-      calendar_mode: false,
       working_week: 'MON_TO_FRI'
     };
 
@@ -89,7 +88,7 @@ describe('Calculation Functions', () => {
         days_allocated: 10,
         buffer_days: 0,
         total_mandays: 10,
-        total_price: 150000
+        allocated_budget: 150000
       },
       {
         id: 2,
@@ -98,7 +97,7 @@ describe('Calculation Functions', () => {
         days_allocated: 5,
         buffer_days: 0,
         total_mandays: 5,
-        total_price: 100000
+        allocated_budget: 100000
       }
     ];
 
@@ -176,7 +175,7 @@ describe('Calculation Functions', () => {
           days_allocated: 10,
           buffer_days: 2,
           total_mandays: 12,
-          total_price: 180000
+          allocated_budget: 180000
         },
         {
           id: 2,
@@ -185,7 +184,7 @@ describe('Calculation Functions', () => {
           days_allocated: 15,
           buffer_days: 3,
           total_mandays: 18,
-          total_price: 360000
+          allocated_budget: 360000
         },
         {
           id: 3,
@@ -194,7 +193,7 @@ describe('Calculation Functions', () => {
           days_allocated: 8,
           buffer_days: 1,
           total_mandays: 9,
-          total_price: 108000
+          allocated_budget: 108000
         }
       ];
 
@@ -229,7 +228,7 @@ describe('Calculation Functions', () => {
           days_allocated: 0,
           buffer_days: 0,
           total_mandays: 0,
-          total_price: 0
+          allocated_budget: 0
         },
         {
           id: 2,
@@ -238,7 +237,7 @@ describe('Calculation Functions', () => {
           days_allocated: undefined,
           buffer_days: undefined,
           total_mandays: 0,
-          total_price: 0
+          allocated_budget: 0
         }
       ];
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseAdmin, isSupabaseConfigured } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase'
 
 export async function GET(
   request: NextRequest,
@@ -16,32 +16,6 @@ export async function GET(
       )
     }
 
-    // Check if Supabase is configured
-    if (!isSupabaseConfigured) {
-      console.warn('Supabase not configured, returning mock response')
-      // Return mock data for development
-      const mockProject = {
-        id: projectId,
-        name: 'E-commerce Platform Redesign',
-        client: 'TechCorp Ltd.',
-        currency_code: 'THB',
-        currency_symbol: '฿',
-        hours_per_day: 7,
-        tax_enabled: false,
-        tax_percentage: 7,
-        proposed_price: 3000000,
-        total_price: 2500000,
-        working_week: 'MON_TO_FRI',
-        execution_days: 45,
-        buffer_days: 0,
-        guarantee_days: 30,
-        start_date: '2025-09-15',
-        status: 'ACTIVE',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }
-      return NextResponse.json(mockProject)
-    }
 
     const { data: project, error } = await supabaseAdmin()
       .from('projects')
@@ -97,11 +71,6 @@ export async function PUT(
 
     const body = await request.json()
     
-    // Check if Supabase is configured
-    if (!isSupabaseConfigured) {
-      console.warn('Supabase not configured, returning mock response')
-      return NextResponse.json({ message: 'Project updated successfully' })
-    }
 
     const { data: updatedProject, error } = await supabaseAdmin()
       .from('projects')
@@ -146,11 +115,6 @@ export async function DELETE(
       )
     }
 
-    // Check if Supabase is configured
-    if (!isSupabaseConfigured) {
-      console.warn('Supabase not configured, returning mock response')
-      return NextResponse.json({ message: 'Project deleted successfully' })
-    }
 
     const { error } = await supabaseAdmin()
       .from('projects')
