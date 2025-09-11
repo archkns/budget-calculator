@@ -47,6 +47,12 @@ const CURRENCIES: Currency[] = [
   { code: 'KRW', symbol: '₩', name: 'South Korean Won' }
 ]
 
+// Helper function to get currency symbol from currency code
+const getCurrencySymbol = (code: string): string => {
+  const currency = CURRENCIES.find(c => c.code === code)
+  return currency?.symbol || '$'
+}
+
 // Fallback exchange rates (updated periodically)
 const FALLBACK_RATES: Record<string, Record<string, number>> = {
   THB: { USD: 0.0278, EUR: 0.0256, GBP: 0.0218, JPY: 4.18, SGD: 0.0374, AUD: 0.0418, CAD: 0.0377, CHF: 0.0248, CNY: 0.199, INR: 2.33, KRW: 37.2, THB: 1 },
@@ -121,6 +127,12 @@ export const RealtimeCurrencyConverter = memo(function RealtimeCurrencyConverter
     } finally {
       setIsLoadingRates(false)
     }
+  }, [currentCurrency])
+
+  // Sync internal state with props
+  useEffect(() => {
+    setSelectedCurrency(currentCurrency)
+    setShowConversionPreview(false) // Reset conversion preview when currency changes
   }, [currentCurrency])
 
   // Initialize exchange rates on component mount
@@ -259,7 +271,7 @@ export const RealtimeCurrencyConverter = memo(function RealtimeCurrencyConverter
             />
           </div>
           <div>
-            <Label>Proposed Price ({currentSymbol})</Label>
+            <Label>Proposed Price ({currentSymbol || getCurrencySymbol(currentCurrency)})</Label>
             <Input
               type="text"
               value={proposedPrice ? proposedPrice.toLocaleString() : ''}
@@ -311,7 +323,7 @@ export const RealtimeCurrencyConverter = memo(function RealtimeCurrencyConverter
             <h4 className="font-medium text-sm">Real-time Currency Conversion</h4>
             <div className="flex items-center space-x-2">
               <Badge variant="outline" className="bg-blue-50 text-blue-700">
-                Current: {currentCurrency} ({currentSymbol})
+                Current: {currentCurrency} ({currentSymbol || getCurrencySymbol(currentCurrency)})
               </Badge>
               <Button
                 variant="ghost"
@@ -458,12 +470,7 @@ export const RealtimeCurrencyConverter = memo(function RealtimeCurrencyConverter
 
           {/* Information */}
           <div className="text-xs text-gray-500 space-y-1 mt-4">
-            <div>• Exchange rates using secure fallback rates</div>
             <div>• Rates update automatically every 5 minutes</div>
-            <div>• Manual rates override live rates when enabled</div>
-            <div>• Currency symbols update throughout the interface</div>
-            <div>• All financial calculations use the selected currency</div>
-            <div>• Fallback to cached rates if API is unavailable</div>
           </div>
         </div>
       </CardContent>

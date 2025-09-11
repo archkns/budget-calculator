@@ -23,6 +23,25 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { formatLevel } from '@/lib/utils'
 
+// Helper function to get currency symbol from currency code
+const getCurrencySymbol = (code: string): string => {
+  const symbols: Record<string, string> = {
+    'THB': '฿',
+    'USD': '$',
+    'EUR': '€',
+    'GBP': '£',
+    'JPY': '¥',
+    'SGD': 'S$',
+    'AUD': 'A$',
+    'CAD': 'C$',
+    'CHF': 'Fr',
+    'CNY': '¥',
+    'INR': '₹',
+    'KRW': '₩'
+  }
+  return symbols[code] || '$'
+}
+
 interface TeamMember {
   id: number
   name: string
@@ -166,7 +185,10 @@ export default function ProjectWorkspace() {
           id: projectData.id,
           name: projectData.name,
           client: projectData.client || '',
-          currency: { code: projectData.currency_code, symbol: projectData.currency_symbol },
+          currency: { 
+            code: projectData.currency_code || 'THB', 
+            symbol: projectData.currency_symbol || getCurrencySymbol(projectData.currency_code || 'THB')
+          },
           exchangeRate: 1, // Default exchange rate
           hoursPerDay: projectData.hours_per_day,
           taxEnabled: projectData.tax_enabled,
