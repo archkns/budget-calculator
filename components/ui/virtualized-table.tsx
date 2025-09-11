@@ -18,7 +18,7 @@ interface VirtualizedTableProps<T> {
   onRowClick?: (item: T, index: number) => void
 }
 
-export function VirtualizedTable<T extends Record<string, any>>({
+export function VirtualizedTable<T extends Record<string, unknown>>({
   data,
   columns,
   height = 400,

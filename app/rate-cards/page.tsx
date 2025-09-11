@@ -342,9 +342,6 @@ export default function RateCards() {
                   <CardTitle className="flex items-center justify-between">
                     <span>{roleName}</span>
                     <div className="flex items-center gap-2">
-                      <Badge variant="outline">
-                        {cards.filter(c => c.is_active).length} active levels
-                      </Badge>
                       <Button
                         size="sm"
                         variant="outline"
