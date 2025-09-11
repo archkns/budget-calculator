@@ -14,6 +14,7 @@ import { Switch } from '@/components/ui/switch'
 import { Plus, Search, Upload, Download, Edit, Trash2, Calculator } from 'lucide-react'
 import Link from 'next/link'
 import { formatTier } from '@/lib/utils'
+import { toast } from 'sonner'
 
 interface TeamMember {
   id: number
@@ -266,6 +267,10 @@ function AddTeamMemberForm({ onClose }: { onClose: () => void }) {
   })
   const [roles, setRoles] = useState<Array<{id: number, name: string}>>([])
   const [loading, setLoading] = useState(false)
+  const [showNewRoleInput, setShowNewRoleInput] = useState(false)
+  const [newRoleName, setNewRoleName] = useState('')
+  const [showNewLevelInput, setShowNewLevelInput] = useState(false)
+  const [newLevelName, setNewLevelName] = useState('')
 
   // Fetch roles when component mounts
   useEffect(() => {
@@ -284,6 +289,50 @@ function AddTeamMemberForm({ onClose }: { onClose: () => void }) {
     }
     fetchRoles()
   }, [])
+
+  // Function to create a new role
+  const createNewRole = async () => {
+    if (!newRoleName.trim()) return
+
+    try {
+      const response = await fetch('/api/roles', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: newRoleName.trim()
+        })
+      })
+
+      if (response.ok) {
+        const newRole = await response.json()
+        setRoles(prev => [...prev, newRole])
+        setFormData(prev => ({ ...prev, role: newRole.name }))
+        setNewRoleName('')
+        setShowNewRoleInput(false)
+        toast.success(`Role "${newRole.name}" created successfully`)
+      } else {
+        const errorData = await response.json()
+        console.error('Failed to create role:', errorData)
+        toast.error(`Failed to create role: ${errorData.error || response.statusText}`)
+      }
+    } catch (error) {
+      console.error('Error creating role:', error)
+      toast.error('Error creating role. Please try again.')
+    }
+  }
+
+  // Function to handle new level creation (since levels are predefined, we'll just add it to the form)
+  const handleNewLevel = () => {
+    if (!newLevelName.trim()) return
+    
+    // Add the new level to the form data
+    setFormData(prev => ({ ...prev, tier: newLevelName.trim().toUpperCase() }))
+    setNewLevelName('')
+    setShowNewLevelInput(false)
+    toast.success(`Level "${newLevelName.trim().toUpperCase()}" added successfully`)
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -310,16 +359,17 @@ function AddTeamMemberForm({ onClose }: { onClose: () => void }) {
       })
 
       if (response.ok) {
+        toast.success('Team member added successfully')
         // Refresh the page to show the new team member
         window.location.reload()
       } else {
         const errorData = await response.json()
         console.error('Failed to add team member:', errorData)
-        alert(`Failed to add team member: ${errorData.error || response.statusText}`)
+        toast.error(`Failed to add team member: ${errorData.error || response.statusText}`)
       }
     } catch (error) {
       console.error('Error adding team member:', error)
-      alert('Error adding team member. Please try again.')
+      toast.error('Error adding team member. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -342,7 +392,13 @@ function AddTeamMemberForm({ onClose }: { onClose: () => void }) {
         
         <div>
           <Label htmlFor="tier">Level</Label>
-          <Select value={formData.tier} onValueChange={(value) => setFormData({ ...formData, tier: value })}>
+          <Select value={formData.tier} onValueChange={(value) => {
+            if (value === 'add_new') {
+              setShowNewLevelInput(true)
+            } else {
+              setFormData({ ...formData, tier: value })
+            }
+          }}>
             <SelectTrigger>
               <SelectValue placeholder="Select level" />
             </SelectTrigger>
@@ -350,14 +406,53 @@ function AddTeamMemberForm({ onClose }: { onClose: () => void }) {
               <SelectItem value="TEAM_LEAD">Team Lead</SelectItem>
               <SelectItem value="SENIOR">Senior</SelectItem>
               <SelectItem value="JUNIOR">Junior</SelectItem>
+              <SelectItem value="add_new" className="text-blue-600 font-medium">
+                + Add New Level
+              </SelectItem>
             </SelectContent>
           </Select>
+          
+          {showNewLevelInput && (
+            <div className="mt-2 flex gap-2">
+              <Input
+                placeholder="Enter new level name"
+                value={newLevelName}
+                onChange={(e) => setNewLevelName(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleNewLevel()}
+              />
+              <Button 
+                type="button" 
+                size="sm" 
+                onClick={handleNewLevel}
+                disabled={!newLevelName.trim()}
+              >
+                Add
+              </Button>
+              <Button 
+                type="button" 
+                variant="outline" 
+                size="sm" 
+                onClick={() => {
+                  setShowNewLevelInput(false)
+                  setNewLevelName('')
+                }}
+              >
+                Cancel
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 
       <div>
         <Label htmlFor="role">Role</Label>
-        <Select value={formData.role} onValueChange={(value) => setFormData({ ...formData, role: value })}>
+        <Select value={formData.role} onValueChange={(value) => {
+          if (value === 'add_new') {
+            setShowNewRoleInput(true)
+          } else {
+            setFormData({ ...formData, role: value })
+          }
+        }}>
           <SelectTrigger>
             <SelectValue placeholder="Select role" />
           </SelectTrigger>
@@ -368,8 +463,41 @@ function AddTeamMemberForm({ onClose }: { onClose: () => void }) {
               </SelectItem>
             ))}
             <SelectItem value="custom">Custom Role</SelectItem>
+            <SelectItem value="add_new" className="text-blue-600 font-medium">
+              + Add New Role
+            </SelectItem>
           </SelectContent>
         </Select>
+        
+        {showNewRoleInput && (
+          <div className="mt-2 flex gap-2">
+            <Input
+              placeholder="Enter new role name"
+              value={newRoleName}
+              onChange={(e) => setNewRoleName(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && createNewRole()}
+            />
+            <Button 
+              type="button" 
+              size="sm" 
+              onClick={createNewRole}
+              disabled={!newRoleName.trim()}
+            >
+              Add
+            </Button>
+            <Button 
+              type="button" 
+              variant="outline" 
+              size="sm" 
+              onClick={() => {
+                setShowNewRoleInput(false)
+                setNewRoleName('')
+              }}
+            >
+              Cancel
+            </Button>
+          </div>
+        )}
       </div>
 
       {formData.role === 'custom' && (
