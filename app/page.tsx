@@ -57,6 +57,27 @@ export default function Dashboard() {
     fetchProjects()
   }, [fetchProjects])
 
+  // Refresh projects when the page becomes visible (user navigates back to it)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        fetchProjects()
+      }
+    }
+
+    const handleFocus = () => {
+      fetchProjects()
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('focus', handleFocus)
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('focus', handleFocus)
+    }
+  }, [fetchProjects])
+
   const handleDeleteProject = useCallback(async (projectId: number) => {
     try {
       const response = await fetch(`/api/projects/${projectId}`, {
@@ -121,13 +142,13 @@ export default function Dashboard() {
     activeProjects: projects.filter(p => p.status === 'ACTIVE').length,
     totalRevenue: projects
       .filter(p => p.status !== 'DRAFT' && p.status !== 'CANCELLED') // Exclude draft and cancelled projects from revenue calculation
-      .reduce((sum, p) => sum + (p.proposed_price || 0), 0),
+      .reduce((sum, p) => sum + (Number(p.proposed_price) || 0), 0),
     avgROI: (() => {
       const activeProjects = projects.filter(p => p.status !== 'DRAFT' && p.status !== 'CANCELLED' && p.proposed_price && p.allocated_budget)
       if (activeProjects.length === 0) return 0
       
       const totalROI = activeProjects.reduce((sum, p) => {
-        const roi = ((p.proposed_price! - p.allocated_budget) / p.allocated_budget) * 100
+        const roi = ((Number(p.proposed_price) - p.allocated_budget) / p.allocated_budget) * 100
         return sum + roi
       }, 0)
       
@@ -291,7 +312,7 @@ export default function Dashboard() {
                       <div className="w-32 text-right mr-6">
                         <p className="text-sm font-medium text-slate-900">Proposed Price</p>
                         <p className="text-sm text-slate-600">
-                          {formatCurrency(project.proposed_price || 0, project.currency_code)}
+                          {formatCurrency(Number(project.proposed_price) || 0, project.currency_code)}
                         </p>
                       </div>
                       <div className="w-28 flex items-center space-x-2">

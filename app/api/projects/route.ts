@@ -20,8 +20,8 @@ export async function GET() {
 
     const response = NextResponse.json(projects || [])
     
-    // Add cache headers for client-side caching
-    response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300')
+    // Don't cache project data as it changes frequently
+    response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate')
     
     return response
   } catch (error) {
