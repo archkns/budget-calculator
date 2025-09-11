@@ -295,90 +295,66 @@ async function fetchIAppThaiHolidays(year: string): Promise<HolidayData[]> {
       throw new Error('Thai Holiday API key not configured. Please set THAI_HOLIDAY_API_KEY environment variable.')
     }
 
-    console.log(`Fetching holidays from iApp Thai Holiday API for year ${year} (2 years ahead)`)
-    
-    // Calculate days from today to 2 years ahead
-    const today = new Date()
-    const endDate = new Date(`${parseInt(year) + 2}-12-31`)
-    const daysAfter = Math.ceil((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-    
-    console.log(`Fetching holidays from today for ${daysAfter} days (until end of ${parseInt(year) + 2})`)
+    console.log(`Fetching financial holidays from iApp Thai Holiday API for year ${year} (2 years ahead)`)
     
     const allHolidays: HolidayData[] = []
     
-    // Fetch public holidays (financial holidays API seems to have issues)
-    const publicResponse = await fetch(`https://api.iapp.co.th/data/thai-holidays/holidays?holiday_type=public&days_after=${daysAfter}`, {
-      headers: {
-        'apikey': apiKey,
-        'Accept': 'application/json',
-        'User-Agent': 'Budget-Calculator/1.0'
-      }
-    })
+    // Fetch financial holidays in smaller chunks to avoid API limitations
+    const chunkSize = 365 // 1 year at a time
+    const today = new Date()
+    const endDate = new Date(`${parseInt(year) + 2}-12-31`)
+    const totalDays = Math.ceil((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+    
+    console.log(`Fetching financial holidays in chunks of ${chunkSize} days (total: ${totalDays} days)`)
+    
+    for (let offset = 0; offset < totalDays; offset += chunkSize) {
+      const currentChunkSize = Math.min(chunkSize, totalDays - offset)
+      console.log(`Fetching financial holidays chunk: ${offset} to ${offset + currentChunkSize} days`)
+      
+      try {
+        const financialResponse = await fetch(`https://api.iapp.co.th/data/thai-holidays/holidays?holiday_type=financial&days_after=${currentChunkSize}`, {
+          headers: {
+            'apikey': apiKey,
+            'Accept': 'application/json',
+            'User-Agent': 'Budget-Calculator/1.0'
+          }
+        })
 
-    // Check public holidays response
-    if (!publicResponse.ok) {
-      throw new Error(`HTTP error for public holidays! status: ${publicResponse.status}`)
-    }
+        if (financialResponse.ok) {
+          const financialData = await financialResponse.json()
+          console.log(`iApp API response for chunk: ${financialData.holidays?.length || 0} financial holidays found`)
 
-    const publicData = await publicResponse.json()
-    console.log(`iApp API response: ${publicData.holidays?.length || 0} public holidays found`)
-
-    // Process public holidays
-    if (publicData.holidays && Array.isArray(publicData.holidays)) {
-      for (const holiday of publicData.holidays) {
-        // Filter holidays for the requested year and next 2 years
-        const holidayYear = parseInt(holiday.date.substring(0, 4))
-        if (holidayYear >= parseInt(year) && holidayYear <= parseInt(year) + 2) {
-          allHolidays.push({
-            id: `iapp-public-${holiday.date}`,
-            name: holiday.name || 'Thai Holiday',
-            date: holiday.date,
-            type: 'public',
-            notes: holiday.weekday ? `Day: ${holiday.weekday}` : '',
-            country: 'TH'
-          })
-        }
-      }
-    }
-
-    // Try to fetch financial holidays (but don't fail if it doesn't work)
-    try {
-      const financialResponse = await fetch(`https://api.iapp.co.th/data/thai-holidays/holidays?holiday_type=financial&days_after=${daysAfter}`, {
-        headers: {
-          'apikey': apiKey,
-          'Accept': 'application/json',
-          'User-Agent': 'Budget-Calculator/1.0'
-        }
-      })
-
-      if (financialResponse.ok) {
-        const financialData = await financialResponse.json()
-        console.log(`iApp API financial response: ${financialData.holidays?.length || 0} financial holidays found`)
-
-        // Process financial holidays
-        if (financialData.holidays && Array.isArray(financialData.holidays)) {
-          for (const holiday of financialData.holidays) {
-            const holidayYear = parseInt(holiday.date.substring(0, 4))
-            if (holidayYear >= parseInt(year) && holidayYear <= parseInt(year) + 2) {
-              allHolidays.push({
-                id: `iapp-financial-${holiday.date}`,
-                name: holiday.name || 'Thai Financial Holiday',
-                date: holiday.date,
-                type: 'financial',
-                notes: holiday.weekday ? `Day: ${holiday.weekday} (Financial)` : 'Financial Holiday',
-                country: 'TH'
-              })
+          // Process financial holidays
+          if (financialData.holidays && Array.isArray(financialData.holidays)) {
+            for (const holiday of financialData.holidays) {
+              // Filter holidays for the requested year and next 2 years
+              const holidayYear = parseInt(holiday.date.substring(0, 4))
+              if (holidayYear >= parseInt(year) && holidayYear <= parseInt(year) + 2) {
+                allHolidays.push({
+                  id: `iapp-financial-${holiday.date}`,
+                  name: holiday.name || 'Thai Financial Holiday',
+                  date: holiday.date,
+                  type: 'financial',
+                  notes: holiday.weekday ? `Day: ${holiday.weekday} (Financial)` : 'Financial Holiday',
+                  country: 'TH'
+                })
+              }
             }
           }
+        } else {
+          console.warn(`Financial holidays API returned status ${financialResponse.status} for chunk ${offset}-${offset + currentChunkSize}`)
         }
-      } else {
-        console.warn(`Financial holidays API returned status: ${financialResponse.status}`)
+      } catch (chunkError) {
+        console.warn(`Failed to fetch financial holidays for chunk ${offset}-${offset + currentChunkSize}:`, chunkError)
       }
-    } catch (financialError) {
-      console.warn('Failed to fetch financial holidays:', financialError)
+      
+      // Break after first successful chunk to avoid duplicates
+      if (allHolidays.length > 0) {
+        break
+      }
     }
 
-    console.log(`Found ${allHolidays.length} holidays from iApp API for years ${year}-${parseInt(year) + 2} (public + financial)`)
+    console.log(`Found ${allHolidays.length} financial holidays from iApp API for years ${year}-${parseInt(year) + 2}`)
     return allHolidays
 
   } catch (error) {
