@@ -34,22 +34,37 @@ export default function Dashboard() {
   const [duplicateStartDate, setDuplicateStartDate] = useState('')
   const [duplicateEndDate, setDuplicateEndDate] = useState('')
 
-  const fetchProjects = useCallback(async () => {
+  const fetchProjects = useCallback(async (showLoading: boolean = true) => {
     try {
-      setLoading(true)
-      const response = await fetch('/api/projects')
+      if (showLoading) {
+        setLoading(true)
+      }
+      
+      const response = await fetch('/api/projects', {
+        // Add cache control to prevent unnecessary requests
+        headers: {
+          'Cache-Control': 'max-age=30' // Cache for 30 seconds
+        }
+      })
+      
       if (response.ok) {
         const data = await response.json()
         setProjects(data)
       } else {
         console.error('Failed to fetch projects:', response.statusText)
-        toast.error('Failed to load projects')
+        if (showLoading) {
+          toast.error('Failed to load projects')
+        }
       }
     } catch (error) {
       console.error('Error fetching projects:', error)
-      toast.error('Failed to load projects')
+      if (showLoading) {
+        toast.error('Failed to load projects')
+      }
     } finally {
-      setLoading(false)
+      if (showLoading) {
+        setLoading(false)
+      }
     }
   }, [])
 
@@ -61,12 +76,14 @@ export default function Dashboard() {
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (!document.hidden) {
-        fetchProjects()
+        // Silent refresh when page becomes visible
+        fetchProjects(false)
       }
     }
 
     const handleFocus = () => {
-      fetchProjects()
+      // Silent refresh when window gains focus
+      fetchProjects(false)
     }
 
     document.addEventListener('visibilitychange', handleVisibilityChange)

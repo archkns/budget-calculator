@@ -68,6 +68,9 @@ export default function NewProjectPage() {
   }
 
   const handleSubmit = async (isDraft: boolean = false) => {
+    // Prevent multiple submissions
+    if (isLoading) return
+
     try {
       setIsLoading(true)
 
@@ -76,6 +79,11 @@ export default function NewProjectPage() {
         toast.error('Project name is required')
         return
       }
+
+      // Show immediate feedback
+      toast.loading(isDraft ? 'Saving project as draft...' : 'Creating project...', {
+        id: 'project-creation'
+      })
 
       const response = await fetch('/api/projects', {
         method: 'POST',
@@ -89,18 +97,26 @@ export default function NewProjectPage() {
       })
 
       if (!response.ok) {
-        throw new Error('Failed to create project')
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Failed to create project')
       }
 
       const project = await response.json()
       
-      toast.success(isDraft ? 'Project saved as draft!' : 'Project created successfully!')
+      // Update toast with success message
+      toast.success(isDraft ? 'Project saved as draft!' : 'Project created successfully!', {
+        id: 'project-creation'
+      })
       
-      // Redirect to the project workspace where timeline will be configured
-      router.push(`/projects/${project.id}`)
+      // Small delay to show success message before redirect
+      setTimeout(() => {
+        router.push(`/projects/${project.id}`)
+      }, 500)
     } catch (error) {
       console.error('Error creating project:', error)
-      toast.error('Failed to create project. Please check your inputs and try again.')
+      toast.error(error instanceof Error ? error.message : 'Failed to create project. Please check your inputs and try again.', {
+        id: 'project-creation'
+      })
     } finally {
       setIsLoading(false)
     }

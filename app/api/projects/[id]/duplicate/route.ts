@@ -46,7 +46,7 @@ export async function POST(
         team_members:team_member_id (
           id,
           name,
-          default_rate_per_day,
+          rate_per_day,
           role_id,
           level_id,
           roles:role_id (
@@ -137,7 +137,7 @@ export async function POST(
           team_members:team_member_id (
             id,
             name,
-            default_rate_per_day,
+            rate_per_day,
             role_id,
             level_id,
             roles:role_id (

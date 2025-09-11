@@ -21,7 +21,7 @@ import { toast } from 'sonner'
 interface TeamMember {
   id: number
   name: string
-  default_rate_per_day: number
+  rate_per_day: number
   status: string
   notes?: string
   roles?: {
@@ -309,7 +309,7 @@ export default function TeamLibrary() {
                         {member.roles?.name}
                       </TableCell>
                       <TableCell>{formatLevel(member.levels)}</TableCell>
-                      <TableCell className="font-mono">{formatCurrency(member.default_rate_per_day)}</TableCell>
+                      <TableCell className="font-mono">{formatCurrency(member.rate_per_day)}</TableCell>
                       <TableCell>
                         <Badge 
                           variant={member.status === 'ACTIVE' ? 'default' : 'secondary'}
@@ -493,7 +493,7 @@ const AddTeamMemberForm = memo(function AddTeamMemberForm({
     const optimisticMember: TeamMember = {
       id: Date.now(), // Temporary ID for optimistic update
       name: formData.name,
-      default_rate_per_day: parseFloat(formData.defaultRate),
+      rate_per_day: parseFloat(formData.defaultRate),
       status: formData.status,
       notes: formData.notes,
       roles: selectedRole,
@@ -514,7 +514,7 @@ const AddTeamMemberForm = memo(function AddTeamMemberForm({
           name: formData.name,
           role_id: parseInt(formData.role_id),
           level_id: parseInt(formData.level_id),
-          default_rate_per_day: parseFloat(formData.defaultRate),
+          rate_per_day: parseFloat(formData.defaultRate),
           notes: formData.notes,
           status: formData.status
         })
@@ -720,7 +720,7 @@ const EditTeamMemberForm = memo(function EditTeamMemberForm({
     name: member.name,
     role_id: member.roles?.id?.toString() || '',
     level_id: member.levels?.id?.toString() || '',
-    defaultRate: member.default_rate_per_day.toString(),
+    defaultRate: member.rate_per_day.toString(),
     notes: member.notes || '',
     status: member.status
   })
@@ -831,7 +831,7 @@ const EditTeamMemberForm = memo(function EditTeamMemberForm({
           name: formData.name,
           role_id: parseInt(formData.role_id),
           level_id: parseInt(formData.level_id),
-          default_rate_per_day: parseFloat(formData.defaultRate),
+          rate_per_day: parseFloat(formData.defaultRate),
           notes: formData.notes,
           status: formData.status
         })

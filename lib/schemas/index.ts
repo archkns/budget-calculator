@@ -41,7 +41,7 @@ export const TeamMemberSchema = z.object({
   name: z.string().min(1, 'Name is required').max(255),
   role_id: z.number().min(1, 'Role is required'),
   level_id: z.number().min(1, 'Level is required'),
-  default_rate_per_day: z.number().positive('Default rate must be positive'),
+  rate_per_day: z.number().positive('Rate per day must be positive'),
   notes: z.string().optional(),
   status: TeamMemberStatus.default('ACTIVE'),
   created_at: z.date().optional(),
@@ -102,7 +102,7 @@ export const TeamMemberCSVSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   role: z.string().min(1, 'Role is required'),
   level: z.string().min(1, 'Level is required'),
-  defaultRatePerDay: z.number().positive('Rate must be positive'),
+  ratePerDay: z.number().positive('Rate must be positive'),
   notes: z.string().optional().default(''),
   status: TeamMemberStatus.default('ACTIVE'),
 });

@@ -80,7 +80,7 @@ export async function PUT(
         team_members:team_member_id (
           id,
           name,
-          default_rate_per_day,
+          rate_per_day,
           roles:role_id (
             id,
             name

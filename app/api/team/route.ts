@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
           name: validatedData.name,
           role_id: validatedData.role_id,
           level_id: validatedData.level_id,
-          default_rate_per_day: validatedData.default_rate_per_day,
+          rate_per_day: validatedData.rate_per_day,
           notes: validatedData.notes,
           status: validatedData.status || 'ACTIVE'
         })

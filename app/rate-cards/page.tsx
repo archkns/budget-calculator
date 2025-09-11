@@ -85,8 +85,13 @@ export default function RateCards() {
     return `฿${amount.toLocaleString()}`
   }, [])
 
-  // Function to refresh rate cards data
-  const refreshRateCards = useCallback(async () => {
+  // Function to refresh rate cards data with optimistic updates support
+  const refreshRateCards = useCallback(async (optimisticCard?: RateCard) => {
+    // If we have an optimistic card, add it immediately for instant feedback
+    if (optimisticCard) {
+      setRateCards(prev => [...prev, optimisticCard])
+    }
+    
     try {
       const response = await fetch('/api/rate-cards')
       if (response.ok) {
@@ -102,9 +107,17 @@ export default function RateCards() {
         setRateCards(transformedData)
       } else {
         console.error('Failed to fetch rate cards:', response.statusText)
+        // If the API call failed and we added an optimistic card, remove it
+        if (optimisticCard) {
+          setRateCards(prev => prev.filter(card => card.id !== optimisticCard.id))
+        }
       }
     } catch (error) {
       console.error('Error fetching rate cards:', error)
+      // If the API call failed and we added an optimistic card, remove it
+      if (optimisticCard) {
+        setRateCards(prev => prev.filter(card => card.id !== optimisticCard.id))
+      }
     }
   }, [])
 
@@ -486,7 +499,7 @@ function AddRateCardForm({
   roleName: string
   levels: Level[]
   onClose: () => void
-  onSuccess: () => void
+  onSuccess: (optimisticCard?: RateCard) => void
 }) {
   const [formData, setFormData] = useState({
     level_id: '',
@@ -518,14 +531,37 @@ function AddRateCardForm({
     e.preventDefault()
     setLoading(true)
     
-    try {
-      // Find the role ID for the selected role name
-      const role = roles.find(r => r.name === roleName)
-      if (!role) {
-        toast.error('Role not found')
-        return
-      }
+    // Find the role ID for the selected role name
+    const role = roles.find(r => r.name === roleName)
+    if (!role) {
+      toast.error('Role not found')
+      setLoading(false)
+      return
+    }
 
+    // Find the selected level
+    const selectedLevel = levels.find(level => level.id.toString() === formData.level_id)
+    if (!selectedLevel) {
+      toast.error('Level not found')
+      setLoading(false)
+      return
+    }
+
+    // Create optimistic rate card for immediate UI feedback
+    const optimisticCard: RateCard = {
+      id: Date.now(), // Temporary ID for optimistic update
+      role_name: roleName,
+      level_name: selectedLevel.name,
+      level_display_name: selectedLevel.display_name,
+      daily_rate: parseFloat(formData.daily_rate),
+      is_active: formData.is_active
+    }
+    
+    // Add optimistic card immediately for instant feedback
+    onSuccess(optimisticCard)
+    onClose()
+    
+    try {
       const response = await fetch('/api/rate-cards', {
         method: 'POST',
         headers: {
@@ -541,16 +577,20 @@ function AddRateCardForm({
 
       if (response.ok) {
         toast.success('Rate card added successfully')
+        // Refresh with the actual data from the server
         onSuccess()
-        onClose()
       } else {
         const errorData = await response.json()
         console.error('Failed to add rate card:', errorData)
         toast.error(`Failed to add rate card: ${errorData.error || response.statusText}`)
+        // The optimistic card will be removed by the refreshRateCards function
+        onSuccess()
       }
     } catch (error) {
       console.error('Error adding rate card:', error)
       toast.error('Error adding rate card. Please try again.')
+      // The optimistic card will be removed by the refreshRateCards function
+      onSuccess()
     } finally {
       setLoading(false)
     }

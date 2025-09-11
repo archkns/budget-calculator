@@ -29,7 +29,7 @@ interface TeamMember {
   name: string
   role_id?: number | null
   level_id?: number | null
-  default_rate_per_day: number
+  rate_per_day: number
   status: 'ACTIVE' | 'INACTIVE'
   notes?: string
   roles?: {
@@ -60,7 +60,7 @@ interface ProjectAssignment {
   team_members?: {
     id: number
     name: string
-    default_rate_per_day: number
+    rate_per_day: number
     roles?: {
       id: number
       name: string
@@ -415,10 +415,38 @@ export default function ProjectWorkspace() {
   }, [])
 
   const handleAddTeamMember = async (teamMember: TeamMember) => {
+    // Create optimistic assignment for immediate UI feedback
+    const optimisticAssignment: ProjectAssignment = {
+      id: Date.now(), // Temporary ID for optimistic update
+      project_id: parseInt(projectId),
+      team_member_id: teamMember.id,
+      daily_rate: teamMember.rate_per_day,
+      days_allocated: 0,
+      buffer_days: 0,
+      total_mandays: 0,
+      allocated_budget: 0,
+      start_date: undefined,
+      end_date: undefined,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      team_members: {
+        id: teamMember.id,
+        name: teamMember.name,
+        rate_per_day: teamMember.rate_per_day,
+        roles: teamMember.roles,
+        levels: teamMember.levels
+      }
+    }
+
+    // Add optimistic assignment immediately for instant feedback
+    setAssignments(prev => [...prev, optimisticAssignment])
+    setShowAddTeamMember(false)
+    setSelectedTeamMember(null)
+
     try {
       const assignmentData = {
         team_member_id: teamMember.id,
-        daily_rate: teamMember.default_rate_per_day
+        daily_rate: teamMember.rate_per_day
       }
 
       const response = await fetch(`/api/projects/${projectId}/assignments`, {
@@ -429,31 +457,48 @@ export default function ProjectWorkspace() {
 
       if (response.ok) {
         const newAssignment = await response.json()
-        setAssignments(prev => [...prev, newAssignment])
+        // Replace optimistic assignment with real data
+        setAssignments(prev => prev.map(assignment => 
+          assignment.id === optimisticAssignment.id ? newAssignment : assignment
+        ))
         toast.success('Team member added successfully')
       } else {
         const errorData = await response.json()
         console.error('Failed to add team member:', errorData)
         toast.error(`Failed to add team member: ${errorData.error || 'Unknown error'}`)
+        // Remove optimistic assignment on failure
+        setAssignments(prev => prev.filter(assignment => assignment.id !== optimisticAssignment.id))
       }
     } catch (error) {
       console.error('Error adding team member:', error)
       toast.error('Failed to add team member')
-    } finally {
-      setShowAddTeamMember(false)
-      setSelectedTeamMember(null)
+      // Remove optimistic assignment on error
+      setAssignments(prev => prev.filter(assignment => assignment.id !== optimisticAssignment.id))
     }
   }
 
   const updateAssignment = async (id: number, field: string, value: string | number) => {
-    try {
-      // Map frontend field names to database field names
-      const dbFieldMap: { [key: string]: string } = {
-        'daysAllocated': 'days_allocated',
-        'bufferDays': 'buffer_days'
-      }
+    // Store the original value for rollback
+    const originalAssignment = assignments.find(assignment => assignment.id === id)
+    if (!originalAssignment) return
 
-      const dbField = dbFieldMap[field] || field
+    // Map frontend field names to database field names
+    const dbFieldMap: { [key: string]: string } = {
+      'daysAllocated': 'days_allocated',
+      'bufferDays': 'buffer_days'
+    }
+
+    const dbField = dbFieldMap[field] || field
+    
+    // Apply optimistic update immediately
+    setAssignments(prev => prev.map(assignment => {
+      if (assignment.id === id) {
+        return { ...assignment, [dbField]: value }
+      }
+      return assignment
+    }))
+
+    try {
       const updateData = { [dbField]: value }
 
       const response = await fetch(`/api/projects/${projectId}/assignments/${id}`, {
@@ -476,30 +521,57 @@ export default function ProjectWorkspace() {
         const errorData = await response.json()
         console.error('Failed to update assignment:', errorData)
         toast.error(`Failed to update assignment: ${errorData.error || 'Unknown error'}`)
+        
+        // Rollback optimistic update on failure
+        setAssignments(prev => prev.map(assignment => {
+          if (assignment.id === id) {
+            return originalAssignment
+          }
+          return assignment
+        }))
       }
     } catch (error) {
       console.error('Error updating assignment:', error)
       toast.error('Failed to update assignment')
+      
+      // Rollback optimistic update on error
+      setAssignments(prev => prev.map(assignment => {
+        if (assignment.id === id) {
+          return originalAssignment
+        }
+        return assignment
+      }))
     }
   }
 
   const handleDeleteAssignment = async (id: number) => {
+    // Store the assignment for potential rollback
+    const assignmentToDelete = assignments.find(assignment => assignment.id === id)
+    if (!assignmentToDelete) return
+
+    // Apply optimistic deletion immediately
+    setAssignments(prev => prev.filter(assignment => assignment.id !== id))
+    toast.success('Team member removed successfully')
+
     try {
       const response = await fetch(`/api/projects/${projectId}/assignments/${id}`, {
         method: 'DELETE'
       })
 
-      if (response.ok) {
-        setAssignments(prev => prev.filter(assignment => assignment.id !== id))
-        toast.success('Team member removed successfully')
-      } else {
+      if (!response.ok) {
         const errorData = await response.json()
         console.error('Failed to delete assignment:', errorData)
         toast.error(`Failed to remove team member: ${errorData.error || 'Unknown error'}`)
+        
+        // Rollback optimistic deletion on failure
+        setAssignments(prev => [...prev, assignmentToDelete])
       }
     } catch (error) {
       console.error('Error deleting assignment:', error)
       toast.error('Failed to remove team member')
+      
+      // Rollback optimistic deletion on error
+      setAssignments(prev => [...prev, assignmentToDelete])
     }
   }
 

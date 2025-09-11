@@ -35,7 +35,7 @@ export interface TeamMember {
   name: string
   role_id: number
   level_id: number
-  default_rate_per_day: number
+  rate_per_day: number
   notes: string | null
   status: 'ACTIVE' | 'INACTIVE'
   created_at: string
@@ -115,7 +115,7 @@ export interface CreateTeamMemberData {
   name: string
   role_id: number
   level_id: number
-  default_rate_per_day: number
+  rate_per_day: number
   notes?: string
   status?: 'ACTIVE' | 'INACTIVE'
 }
