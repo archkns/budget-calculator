@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useRef, useEffect } from 'react'
-import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Check, X, Edit2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -30,14 +29,18 @@ export function InlineEdit({
   const [isEditing, setIsEditing] = useState(false)
   const [editValue, setEditValue] = useState(value)
   const [isSaving, setIsSaving] = useState(false)
-  const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
-    if (isEditing && inputRef.current) {
-      inputRef.current.focus()
-      inputRef.current.select()
+    if (isEditing) {
+      const currentRef = multiline ? textareaRef.current : inputRef.current
+      if (currentRef) {
+        currentRef.focus()
+        currentRef.select()
+      }
     }
-  }, [isEditing])
+  }, [isEditing, multiline])
 
   const handleStartEdit = () => {
     setEditValue(value)
@@ -78,23 +81,37 @@ export function InlineEdit({
   }
 
   if (isEditing) {
-    const InputComponent = multiline ? 'textarea' : 'input'
     return (
       <div className={cn("flex items-center space-x-2", className)}>
-        <InputComponent
-          ref={inputRef as any}
-          value={editValue}
-          onChange={(e) => setEditValue(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder={placeholder}
-          maxLength={maxLength}
-          className={cn(
-            "flex-1",
-            multiline && "min-h-[60px] resize-none",
-            inputClassName
-          )}
-          disabled={isSaving}
-        />
+        {multiline ? (
+          <textarea
+            ref={textareaRef}
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={placeholder}
+            maxLength={maxLength}
+            className={cn(
+              "flex-1 min-h-[60px] resize-none",
+              inputClassName
+            )}
+            disabled={isSaving}
+          />
+        ) : (
+          <input
+            ref={inputRef}
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={placeholder}
+            maxLength={maxLength}
+            className={cn(
+              "flex-1",
+              inputClassName
+            )}
+            disabled={isSaving}
+          />
+        )}
         <Button
           size="sm"
           onClick={handleSave}

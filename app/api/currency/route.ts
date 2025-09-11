@@ -210,7 +210,7 @@ export async function GET(request: NextRequest) {
         base: base,
         warning: 'Using fallback rates due to API error'
       });
-    } catch (fallbackError) {
+    } catch {
       return NextResponse.json(
         { 
           success: false,
