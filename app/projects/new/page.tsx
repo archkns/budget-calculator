@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
+import { DayPicker } from '@/components/ui/day-picker'
 import { Calculator, ArrowLeft, Save, Rocket } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
@@ -23,6 +24,8 @@ interface ProjectFormData {
   tax_percentage: number
   proposed_price: number | undefined
   working_week: string
+  custom_working_days: string[]
+  guarantee_days: number
 }
 
 const currencyOptions = [
@@ -51,10 +54,12 @@ export default function NewProjectPage() {
     tax_enabled: false,
     tax_percentage: 7,
     proposed_price: undefined,
-    working_week: 'MON_TO_FRI'
+    working_week: 'MON_TO_FRI',
+    custom_working_days: ['MON', 'TUE', 'WED', 'THU', 'FRI'],
+    guarantee_days: 30
   })
 
-  const handleInputChange = (field: keyof ProjectFormData, value: string | number | boolean | undefined) => {
+  const handleInputChange = (field: keyof ProjectFormData, value: string | number | boolean | string[] | undefined) => {
     setFormData(prev => ({ ...prev, [field]: value }))
   }
 
@@ -231,6 +236,16 @@ export default function NewProjectPage() {
                 </div>
               </div>
 
+              {/* Custom Working Days */}
+              {formData.working_week === 'CUSTOM' && (
+                <div className="mt-6">
+                  <DayPicker
+                    selectedDays={formData.custom_working_days}
+                    onDaysChange={(days) => handleInputChange('custom_working_days', days)}
+                  />
+                </div>
+              )}
+
               <Separator />
 
               {/* Tax Settings */}
@@ -263,32 +278,6 @@ export default function NewProjectPage() {
             </CardContent>
           </Card>
 
-          {/* Pricing (Optional) */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Pricing (Optional)</CardTitle>
-              <CardDescription>
-                Set an initial proposed price for ROI and margin calculations
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <Label htmlFor="proposedPrice">Proposed Price ({formData.currency_symbol})</Label>
-                <Input
-                  id="proposedPrice"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  placeholder="e.g., 3000000"
-                  value={formData.proposed_price || ''}
-                  onChange={(e) => handleInputChange('proposed_price', e.target.value ? parseFloat(e.target.value) : undefined)}
-                />
-                <p className="text-xs text-slate-500">
-                  You can always update this later in the project workspace
-                </p>
-              </div>
-            </CardContent>
-          </Card>
 
           {/* Action Buttons */}
           <div className="flex items-center justify-between pt-6">

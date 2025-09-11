@@ -23,9 +23,13 @@ interface RealtimeCurrencyConverterProps {
   currentSymbol: string
   proposedPrice: number
   hoursPerDay: number
+  taxEnabled: boolean
+  taxPercentage: number
   onCurrencyChange: (currency: string, symbol: string, rate: number) => void
   onProposedPriceChange: (price: number) => void
   onHoursPerDayChange: (hours: number) => void
+  onTaxEnabledChange: (enabled: boolean) => void
+  onTaxPercentageChange: (percentage: number) => void
 }
 
 const CURRENCIES: Currency[] = [
@@ -55,9 +59,13 @@ export const RealtimeCurrencyConverter = memo(function RealtimeCurrencyConverter
   currentSymbol,
   proposedPrice,
   hoursPerDay,
+  taxEnabled,
+  taxPercentage,
   onCurrencyChange,
   onProposedPriceChange,
-  onHoursPerDayChange
+  onHoursPerDayChange,
+  onTaxEnabledChange,
+  onTaxPercentageChange
 }: RealtimeCurrencyConverterProps) {
   const [selectedCurrency, setSelectedCurrency] = useState(currentCurrency)
   const [manualRate, setManualRate] = useState<string>('')
@@ -257,6 +265,36 @@ export const RealtimeCurrencyConverter = memo(function RealtimeCurrencyConverter
               value={proposedPrice}
               onChange={(e) => onProposedPriceChange(parseInt(e.target.value))}
             />
+          </div>
+        </div>
+
+        {/* Tax Settings */}
+        <div className="border-t pt-4">
+          <div className="space-y-4">
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="tax-enabled"
+                checked={taxEnabled}
+                onCheckedChange={onTaxEnabledChange}
+              />
+              <Label htmlFor="tax-enabled">Enable Tax Calculation</Label>
+            </div>
+
+            {taxEnabled && (
+              <div className="space-y-2">
+                <Label htmlFor="tax-percentage">Tax Percentage (%)</Label>
+                <Input
+                  id="tax-percentage"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  value={taxPercentage}
+                  onChange={(e) => onTaxPercentageChange(parseFloat(e.target.value))}
+                  className="w-32"
+                />
+              </div>
+            )}
           </div>
         </div>
 

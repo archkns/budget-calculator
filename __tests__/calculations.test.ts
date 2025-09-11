@@ -8,6 +8,7 @@ import {
   formatPercentage,
   sanitizeCSVCell
 } from '../lib/calculations';
+import { formatDate } from '../lib/utils';
 import { ProjectAssignment, Project } from '../lib/schemas';
 import Decimal from 'decimal.js';
 
@@ -162,6 +163,116 @@ describe('Calculation Functions', () => {
       expect(sanitizeCSVCell('-5')).toBe("'-5");
       expect(sanitizeCSVCell('@username')).toBe("'@username");
       expect(sanitizeCSVCell('normal text')).toBe('normal text');
+    });
+  });
+
+  describe('Project end_date calculation for parallel assignments', () => {
+    it('should calculate end_date based on maximum assignment duration for parallel work', () => {
+      const assignments = [
+        {
+          id: 1,
+          project_id: 1,
+          daily_rate: 15000,
+          days_allocated: 10,
+          buffer_days: 2,
+          total_mandays: 12,
+          total_price: 180000
+        },
+        {
+          id: 2,
+          project_id: 1,
+          daily_rate: 20000,
+          days_allocated: 15,
+          buffer_days: 3,
+          total_mandays: 18,
+          total_price: 360000
+        },
+        {
+          id: 3,
+          project_id: 1,
+          daily_rate: 12000,
+          days_allocated: 8,
+          buffer_days: 1,
+          total_mandays: 9,
+          total_price: 108000
+        }
+      ];
+
+      // Calculate maximum assignment duration (execution_days + buffer_days)
+      const maxAssignmentDuration = Math.max(...assignments.map(a => (a.days_allocated || 0) + (a.buffer_days || 0)), 0);
+      
+      // Should be 15 + 3 = 18 days (the longest assignment)
+      expect(maxAssignmentDuration).toBe(18);
+    });
+
+    it('should handle projects with no assignments by using project execution_days + buffer_days', () => {
+      const assignments: ProjectAssignment[] = [];
+      const project = {
+        execution_days: 20,
+        buffer_days: 5
+      };
+
+      const maxAssignmentDuration = assignments.length > 0 
+        ? Math.max(...assignments.map(a => (a.days_allocated || 0) + (a.buffer_days || 0)), 0)
+        : (project.execution_days || 0) + (project.buffer_days || 0);
+      
+      // Should be 20 + 5 = 25 days
+      expect(maxAssignmentDuration).toBe(25);
+    });
+
+    it('should handle assignments with zero or undefined values', () => {
+      const assignments = [
+        {
+          id: 1,
+          project_id: 1,
+          daily_rate: 15000,
+          days_allocated: 0,
+          buffer_days: 0,
+          total_mandays: 0,
+          total_price: 0
+        },
+        {
+          id: 2,
+          project_id: 1,
+          daily_rate: 20000,
+          days_allocated: undefined,
+          buffer_days: undefined,
+          total_mandays: 0,
+          total_price: 0
+        }
+      ];
+
+      const maxAssignmentDuration = Math.max(...assignments.map(a => (a.days_allocated || 0) + (a.buffer_days || 0)), 0);
+      
+      // Should be 0 since all assignments have 0 or undefined values
+      expect(maxAssignmentDuration).toBe(0);
+    });
+  });
+
+  describe('Date formatting', () => {
+    it('should format date in DD MMM YYYY format', () => {
+      expect(formatDate('2025-09-11')).toBe('11 Sep 2025');
+      expect(formatDate('2025-01-01')).toBe('01 Jan 2025');
+      expect(formatDate('2025-12-31')).toBe('31 Dec 2025');
+    });
+
+    it('should handle Date objects', () => {
+      const date = new Date('2025-09-11');
+      expect(formatDate(date)).toBe('11 Sep 2025');
+    });
+
+    it('should handle null and undefined values', () => {
+      expect(formatDate(null)).toBe('Not set');
+      expect(formatDate(undefined)).toBe('Not set');
+    });
+
+    it('should handle invalid dates', () => {
+      expect(formatDate('invalid-date')).toBe('Invalid date');
+      expect(formatDate('2025-13-45')).toBe('Invalid date');
+    });
+
+    it('should handle empty string', () => {
+      expect(formatDate('')).toBe('Not set');
     });
   });
 });

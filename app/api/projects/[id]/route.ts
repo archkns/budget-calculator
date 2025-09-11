@@ -34,7 +34,7 @@ export async function GET(
         working_week: 'MON_TO_FRI',
         execution_days: 45,
         buffer_days: 0,
-        guarantee_days: 8,
+        guarantee_days: 30,
         start_date: '2025-09-15',
         status: 'ACTIVE',
         created_at: new Date().toISOString(),

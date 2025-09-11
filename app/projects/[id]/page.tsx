@@ -14,11 +14,13 @@ import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { InteractiveGantt } from '@/components/ui/interactive-gantt'
-import { Calculator, Plus, Trash2, FileText, TrendingUp, TrendingDown, CalendarIcon, Edit, Check } from 'lucide-react'
+import { Calculator, Plus, Trash2, FileText, TrendingUp, TrendingDown, CalendarIcon, Edit, Check, AlertTriangle } from 'lucide-react'
 import { format, addDays, isWeekend, differenceInDays } from 'date-fns'
 import { toast } from 'sonner'
 import { RealtimeCurrencyConverter } from "@/components/ui/realtime-currency-converter"
+import { InlineEdit } from '@/components/ui/inline-edit'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { formatTier } from '@/lib/utils'
 
 interface TeamMember {
@@ -95,6 +97,7 @@ interface GanttTask {
 
 export default function ProjectWorkspace() {
   const params = useParams()
+  const router = useRouter()
   const projectId = params.id as string
   
   const [project, setProject] = useState({
@@ -110,7 +113,7 @@ export default function ProjectWorkspace() {
     totalPrice: 0,
     startDate: new Date(),
     executionDays: 0,
-    guaranteePeriod: 8,
+    guaranteePeriod: 30,
     finalDays: 0,
     status: 'ACTIVE' as 'ACTIVE' | 'DRAFT' | 'COMPLETED' | 'CANCELLED'
   })
@@ -122,6 +125,7 @@ export default function ProjectWorkspace() {
   const [showAddTeamMember, setShowAddTeamMember] = useState(false)
   const [selectedTeamMember, setSelectedTeamMember] = useState<TeamMember | null>(null)
   const [showStatusEdit, setShowStatusEdit] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   const fetchProject = useCallback(async () => {
     try {
@@ -141,8 +145,8 @@ export default function ProjectWorkspace() {
           totalPrice: projectData.total_price || 0,
           startDate: projectData.start_date ? new Date(projectData.start_date) : new Date(),
           executionDays: projectData.execution_days || 0,
-          guaranteePeriod: projectData.guarantee_days || 8,
-          finalDays: (projectData.execution_days || 0) + (projectData.guarantee_days || 8),
+          guaranteePeriod: projectData.guarantee_days || 30,
+          finalDays: (projectData.execution_days || 0) + (projectData.guarantee_days || 30),
           status: projectData.status || 'ACTIVE'
         })
       } else {
@@ -230,14 +234,19 @@ export default function ProjectWorkspace() {
   }
 
   const calculateProjectDates = () => {
-    const totalExecutionDays = Math.max(...assignments.map(a => a.days_allocated), 0)
-    const executionEndDate = calculateWorkdays(project.startDate, totalExecutionDays, holidays)
+    // Calculate the maximum assignment duration (execution_days + buffer_days) for parallel work
+    // This handles the case where team members work in parallel, so we take the longest individual assignment
+    const maxAssignmentDuration = assignments.length > 0 
+      ? Math.max(...assignments.map(a => (a.days_allocated || 0) + (a.buffer_days || 0)), 0)
+      : (project.executionDays || 0)
+    
+    const executionEndDate = calculateWorkdays(project.startDate, maxAssignmentDuration, holidays)
     const projectEndDate = calculateWorkdays(executionEndDate, project.guaranteePeriod, holidays)
     
     return {
       executionEndDate,
       projectEndDate,
-      totalExecutionDays,
+      totalExecutionDays: maxAssignmentDuration,
       guaranteePeriod: project.guaranteePeriod
     }
   }
@@ -261,6 +270,52 @@ export default function ProjectWorkspace() {
     } catch (error) {
       console.error('Error updating project status:', error)
       toast.error('Failed to update project status')
+    }
+  }, [projectId])
+
+  const updateProjectName = useCallback(async (newName: string) => {
+    try {
+      const response = await fetch(`/api/projects/${projectId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newName })
+      })
+
+      if (response.ok) {
+        setProject(prev => ({ ...prev, name: newName }))
+        toast.success('Project name updated successfully')
+      } else {
+        console.error('Failed to update project name:', response.statusText)
+        toast.error('Failed to update project name')
+        throw new Error('Failed to update project name')
+      }
+    } catch (error) {
+      console.error('Error updating project name:', error)
+      toast.error('Failed to update project name')
+      throw error
+    }
+  }, [projectId])
+
+  const updateProjectClient = useCallback(async (newClient: string) => {
+    try {
+      const response = await fetch(`/api/projects/${projectId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ client: newClient })
+      })
+
+      if (response.ok) {
+        setProject(prev => ({ ...prev, client: newClient }))
+        toast.success('Client name updated successfully')
+      } else {
+        console.error('Failed to update client name:', response.statusText)
+        toast.error('Failed to update client name')
+        throw new Error('Failed to update client name')
+      }
+    } catch (error) {
+      console.error('Error updating client name:', error)
+      toast.error('Failed to update client name')
+      throw error
     }
   }, [projectId])
 
@@ -519,36 +574,6 @@ export default function ProjectWorkspace() {
     }
   }
 
-  const handleTaskResize = async (taskId: number, newDuration: number) => {
-    const assigneeId = Math.ceil(taskId / 2)
-    const isBuffer = taskId % 2 === 0
-    
-    try {
-      const updateData = isBuffer 
-        ? { bufferDays: newDuration }
-        : { daysAllocated: newDuration }
-
-      const response = await fetch(`/api/projects/${projectId}/assignments/${assigneeId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updateData)
-      })
-
-      if (response.ok) {
-        const updatedAssignment = await response.json()
-        setAssignments(prev => prev.map(assignment => {
-          if (assignment.id === assigneeId) {
-            return updatedAssignment
-          }
-          return assignment
-        }))
-      }
-    } catch (error) {
-      console.error('Error resizing task:', error)
-      toast.error('Failed to resize task')
-    }
-  }
-
   const handleSaveProject = async () => {
     try {
       // Transform project data to match API schema
@@ -657,6 +682,29 @@ export default function ProjectWorkspace() {
     }
   }
 
+  const handleDeleteProject = async () => {
+    try {
+      const response = await fetch(`/api/projects/${projectId}`, {
+        method: 'DELETE'
+      })
+
+      if (response.ok) {
+        toast.success('Project deleted successfully')
+        // Redirect to projects list page
+        router.push('/')
+      } else {
+        const errorData = await response.json()
+        console.error('Delete project error:', errorData)
+        toast.error(`Failed to delete project: ${errorData.error || 'Unknown error'}`)
+      }
+    } catch (error) {
+      console.error('Error deleting project:', error)
+      toast.error('Failed to delete project')
+    } finally {
+      setShowDeleteConfirm(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
@@ -674,6 +722,50 @@ export default function ProjectWorkspace() {
             <div className="flex items-center space-x-3">
               <Button variant="outline" onClick={handleSaveDraft}>Save Draft</Button>
               <Button onClick={handleSaveProject}>Save Project</Button>
+              <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+                <DialogTrigger asChild>
+                  <Button variant="destructive">
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete Project
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center text-red-600">
+                      <AlertTriangle className="h-5 w-5 mr-2" />
+                      Delete Project
+                    </DialogTitle>
+                    <DialogDescription>
+                      Are you sure you want to delete this project? This action cannot be undone and will permanently remove:
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="py-4">
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                      <ul className="text-sm text-red-800 space-y-1">
+                        <li>• Project: <strong>{project.name}</strong></li>
+                        <li>• Client: <strong>{project.client}</strong></li>
+                        <li>• All team assignments and data</li>
+                        <li>• All project calculations and settings</li>
+                        <li>• All associated holidays and timeline data</li>
+                      </ul>
+                    </div>
+                    <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <p className="text-sm text-yellow-800 font-medium">
+                        ⚠️ This action cannot be reverted. Please make sure you want to permanently delete this project.
+                      </p>
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setShowDeleteConfirm(false)}>
+                      Cancel
+                    </Button>
+                    <Button variant="destructive" onClick={handleDeleteProject}>
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete Project
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </div>
           </div>
         </div>
@@ -684,8 +776,25 @@ export default function ProjectWorkspace() {
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-slate-900">{project.name}</h1>
-              <p className="text-slate-600 mt-2">Client: {project.client}</p>
+              <InlineEdit
+                value={project.name}
+                onSave={updateProjectName}
+                placeholder="Enter project name"
+                className="mb-2"
+                displayClassName="text-3xl font-bold text-slate-900"
+                inputClassName="text-3xl font-bold"
+                maxLength={100}
+              />
+              <div className="text-slate-600 mt-2">
+                <span className="mr-2">Client:</span>
+                <InlineEdit
+                  value={project.client}
+                  onSave={updateProjectClient}
+                  placeholder="Enter client name"
+                  displayClassName="text-slate-600"
+                  maxLength={100}
+                />
+              </div>
               <p className="text-slate-500 text-sm mt-1">
                 {format(project.startDate, 'dd MMM yyyy')} - {format(projectDates.projectEndDate, 'dd MMM yyyy')}
               </p>
@@ -846,6 +955,8 @@ export default function ProjectWorkspace() {
                 currentSymbol={project.currency.symbol}
                 proposedPrice={project.proposedPrice}
                 hoursPerDay={project.hoursPerDay}
+                taxEnabled={project.taxEnabled}
+                taxPercentage={project.taxPercentage}
                 onCurrencyChange={(currency, symbol, rate) => {
                   setProject(prev => ({
                     ...prev,
@@ -858,6 +969,12 @@ export default function ProjectWorkspace() {
                 }}
                 onHoursPerDayChange={(hours) => {
                   setProject(prev => ({ ...prev, hoursPerDay: hours }))
+                }}
+                onTaxEnabledChange={(enabled) => {
+                  setProject(prev => ({ ...prev, taxEnabled: enabled }))
+                }}
+                onTaxPercentageChange={(percentage) => {
+                  setProject(prev => ({ ...prev, taxPercentage: percentage }))
                 }}
               />
               <Card>
@@ -1100,6 +1217,16 @@ export default function ProjectWorkspace() {
                 </Table>
               </CardContent>
             </Card>
+
+            {/* Save Buttons */}
+            <div className="flex items-center justify-end space-x-3 pt-6">
+              <Button variant="outline" onClick={handleSaveDraft}>
+                Save Draft
+              </Button>
+              <Button onClick={handleSaveProject}>
+                Save Project
+              </Button>
+            </div>
           </TabsContent>
 
           <TabsContent value="gantt" className="space-y-6">
@@ -1109,7 +1236,6 @@ export default function ProjectWorkspace() {
               projectStart={project.startDate}
               projectEnd={projectDates.projectEndDate}
               onTaskUpdate={handleTaskUpdate}
-              onTaskResize={handleTaskResize}
             />
           </TabsContent>
         </Tabs>

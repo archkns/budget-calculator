@@ -27,3 +27,21 @@ export function formatCurrency(amount: number, currencySymbol: string = '฿'): 
 export function formatPercentage(percentage: number): string {
   return `${percentage.toFixed(2)}%`
 }
+
+/**
+ * Format date in DD MMM YYYY format (e.g., "11 Sep 2025")
+ */
+export function formatDate(date: string | Date | null | undefined): string {
+  if (!date) return 'Not set'
+  
+  const dateObj = typeof date === 'string' ? new Date(date) : date
+  
+  // Check if date is valid
+  if (isNaN(dateObj.getTime())) return 'Invalid date'
+  
+  const day = dateObj.getDate().toString().padStart(2, '0')
+  const month = dateObj.toLocaleDateString('en-US', { month: 'short' })
+  const year = dateObj.getFullYear()
+  
+  return `${day} ${month} ${year}`
+}

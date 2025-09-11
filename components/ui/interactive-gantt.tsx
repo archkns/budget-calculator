@@ -29,7 +29,6 @@ interface InteractiveGanttProps {
   projectStart: Date
   projectEnd: Date
   onTaskUpdate: (taskId: number, startDate: Date, endDate: Date) => void
-  onTaskResize: (taskId: number, newDuration: number) => void
 }
 
 export const InteractiveGantt = memo(function InteractiveGantt({ 
@@ -37,11 +36,11 @@ export const InteractiveGantt = memo(function InteractiveGantt({
   holidays, 
   projectStart, 
   projectEnd, 
-  onTaskUpdate, 
-  onTaskResize 
+  onTaskUpdate
 }: InteractiveGanttProps) {
   const [draggedTask, setDraggedTask] = useState<number | null>(null)
   const [resizingTask, setResizingTask] = useState<number | null>(null)
+  const [resizeType, setResizeType] = useState<'start' | 'end' | null>(null)
   const [dragOffset, setDragOffset] = useState(0)
   const ganttRef = useRef<HTMLDivElement>(null)
 
@@ -83,7 +82,7 @@ export const InteractiveGantt = memo(function InteractiveGantt({
     )
   }, [holidays])
 
-  const handleMouseDown = (e: React.MouseEvent, taskId: number, action: 'drag' | 'resize') => {
+  const handleMouseDown = (e: React.MouseEvent, taskId: number, action: 'drag' | 'resize-start' | 'resize-end') => {
     e.preventDefault()
     e.stopPropagation()
     
@@ -93,8 +92,12 @@ export const InteractiveGantt = memo(function InteractiveGantt({
       if (rect) {
         setDragOffset(e.clientX - rect.left)
       }
-    } else {
+    } else if (action === 'resize-start') {
       setResizingTask(taskId)
+      setResizeType('start')
+    } else if (action === 'resize-end') {
+      setResizingTask(taskId)
+      setResizeType('end')
     }
   }
 
@@ -116,17 +119,30 @@ export const InteractiveGantt = memo(function InteractiveGantt({
       onTaskUpdate(draggedTask, newStartDate, newEndDate)
     }
 
-    if (resizingTask !== null) {
+    if (resizingTask !== null && resizeType) {
       const task = tasks.find(t => t.id === resizingTask)
       if (!task) return
 
       const taskStartX = getDatePosition(task.startDate) + labelWidth
-      const newWidth = Math.max(dayWidth, x - taskStartX)
-      const newDuration = Math.max(1, Math.round(newWidth / dayWidth))
+      const taskEndX = getDatePosition(task.endDate) + labelWidth
       
-      onTaskResize(resizingTask, newDuration)
+      if (resizeType === 'start') {
+        // Resize from start - change start date
+        const newStartX = Math.min(x - labelWidth, taskEndX - dayWidth)
+        const newStartDay = Math.round(newStartX / dayWidth)
+        const newStartDate = addDays(timelineStart, Math.max(0, newStartDay))
+        
+        onTaskUpdate(resizingTask, newStartDate, task.endDate)
+      } else if (resizeType === 'end') {
+        // Resize from end - change end date
+        const newEndX = Math.max(x - labelWidth, taskStartX + dayWidth)
+        const newEndDay = Math.round(newEndX / dayWidth)
+        const newEndDate = addDays(timelineStart, newEndDay)
+        
+        onTaskUpdate(resizingTask, task.startDate, newEndDate)
+      }
     }
-  }, [draggedTask, resizingTask, dragOffset, tasks, onTaskUpdate, onTaskResize, timelineStart, dayWidth, labelWidth, getDatePosition])
+  }, [draggedTask, resizingTask, resizeType, dragOffset, tasks, onTaskUpdate, timelineStart, dayWidth, labelWidth, getDatePosition])
 
   const handleGlobalMouseMove = useCallback((e: MouseEvent) => {
     if (!ganttRef.current) return
@@ -146,21 +162,35 @@ export const InteractiveGantt = memo(function InteractiveGantt({
       onTaskUpdate(draggedTask, newStartDate, newEndDate)
     }
 
-    if (resizingTask !== null) {
+    if (resizingTask !== null && resizeType) {
       const task = tasks.find(t => t.id === resizingTask)
       if (!task) return
 
       const taskStartX = getDatePosition(task.startDate) + labelWidth
-      const newWidth = Math.max(dayWidth, x - taskStartX)
-      const newDuration = Math.max(1, Math.round(newWidth / dayWidth))
+      const taskEndX = getDatePosition(task.endDate) + labelWidth
       
-      onTaskResize(resizingTask, newDuration)
+      if (resizeType === 'start') {
+        // Resize from start - change start date
+        const newStartX = Math.min(x - labelWidth, taskEndX - dayWidth)
+        const newStartDay = Math.round(newStartX / dayWidth)
+        const newStartDate = addDays(timelineStart, Math.max(0, newStartDay))
+        
+        onTaskUpdate(resizingTask, newStartDate, task.endDate)
+      } else if (resizeType === 'end') {
+        // Resize from end - change end date
+        const newEndX = Math.max(x - labelWidth, taskStartX + dayWidth)
+        const newEndDay = Math.round(newEndX / dayWidth)
+        const newEndDate = addDays(timelineStart, newEndDay)
+        
+        onTaskUpdate(resizingTask, task.startDate, newEndDate)
+      }
     }
-  }, [draggedTask, resizingTask, dragOffset, tasks, onTaskUpdate, onTaskResize, timelineStart, dayWidth, labelWidth, getDatePosition])
+  }, [draggedTask, resizingTask, resizeType, dragOffset, tasks, onTaskUpdate, timelineStart, dayWidth, labelWidth, getDatePosition])
 
   const handleMouseUp = () => {
     setDraggedTask(null)
     setResizingTask(null)
+    setResizeType(null)
     setDragOffset(0)
   }
 
@@ -318,8 +348,9 @@ export const InteractiveGantt = memo(function InteractiveGantt({
 
                         {/* Task Bar */}
                         <div
-                          className={`absolute rounded cursor-move transition-all duration-150 hover:shadow-md ${
-                            draggedTask === task.id ? 'shadow-lg scale-105 z-20' : 'z-10'
+                          className={`absolute rounded transition-all duration-150 hover:shadow-md ${
+                            draggedTask === task.id ? 'shadow-lg scale-105 z-20 cursor-grabbing' : 
+                            resizingTask === task.id ? 'z-20 cursor-ew-resize ring-2 ring-white/50' : 'cursor-move z-10'
                           }`}
                           style={{
                             left: startX + labelWidth,
@@ -330,7 +361,21 @@ export const InteractiveGantt = memo(function InteractiveGantt({
                             transform: draggedTask === task.id ? 'translateY(-1px)' : 'none',
                             border: `1px solid ${task.color}`
                           }}
-                          onMouseDown={(e) => handleMouseDown(e, task.id, 'drag')}
+                          onMouseDown={(e) => {
+                            // Check if clicking on resize handles or main area
+                            const rect = e.currentTarget.getBoundingClientRect()
+                            const clickX = e.clientX - rect.left
+                            const isOnLeftResize = clickX < 12 // 12px left resize area
+                            const isOnRightResize = clickX > (rect.width - 12) // 12px right resize area
+                            
+                            if (isOnLeftResize) {
+                              handleMouseDown(e, task.id, 'resize-start')
+                            } else if (isOnRightResize) {
+                              handleMouseDown(e, task.id, 'resize-end')
+                            } else {
+                              handleMouseDown(e, task.id, 'drag')
+                            }
+                          }}
                         >
                           {/* Task Content */}
                           <div className="flex items-center justify-between h-full px-2 text-white">
@@ -347,12 +392,29 @@ export const InteractiveGantt = memo(function InteractiveGantt({
                             </Badge>
                           </div>
 
-                          {/* Resize Handle */}
+                          {/* Left Resize Handle */}
                           <div
-                            className="absolute right-0 top-0 w-2 h-full cursor-ew-resize bg-black/20 opacity-0 hover:opacity-100 transition-opacity"
-                            onMouseDown={(e) => handleMouseDown(e, task.id, 'resize')}
-                            title="Drag to resize"
-                          />
+                            className="absolute left-0 top-0 w-3 h-full cursor-ew-resize bg-white/20 hover:bg-white/40 transition-all duration-150 flex items-center justify-center group"
+                            onMouseDown={(e) => {
+                              e.stopPropagation()
+                              handleMouseDown(e, task.id, 'resize-start')
+                            }}
+                            title="Drag to resize start date"
+                          >
+                            <div className="w-1 h-4 bg-white/80 rounded-full group-hover:bg-white transition-colors"></div>
+                          </div>
+
+                          {/* Right Resize Handle */}
+                          <div
+                            className="absolute right-0 top-0 w-3 h-full cursor-ew-resize bg-white/20 hover:bg-white/40 transition-all duration-150 flex items-center justify-center group"
+                            onMouseDown={(e) => {
+                              e.stopPropagation()
+                              handleMouseDown(e, task.id, 'resize-end')
+                            }}
+                            title="Drag to resize end date"
+                          >
+                            <div className="w-1 h-4 bg-white/80 rounded-full group-hover:bg-white transition-colors"></div>
+                          </div>
                         </div>
 
                         {/* Task Dates */}
