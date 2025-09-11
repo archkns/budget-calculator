@@ -9,7 +9,10 @@
     "lint": "eslint"
   },
   "eslintConfig": {
-    "extends": ["next/core-web-vitals", "next/typescript"],
+    "extends": [
+      "next/core-web-vitals",
+      "next/typescript"
+    ],
     "ignorePatterns": [
       "node_modules/**",
       ".next/**",
@@ -65,7 +68,7 @@
     "jspdf-autotable": "^5.0.2",
     "lucide-react": "^0.543.0",
     "motion": "^12.23.12",
-    "next": "15.5.2",
+    "next": "^15.5.3",
     "next-themes": "^0.4.6",
     "pg": "^8.16.3",
     "react": "^19.1.1",
@@ -86,7 +89,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "15.5.2",
+    "eslint-config-next": "^15.5.3",
     "tw-animate-css": "^1.3.8",
     "typescript": "^5"
   },
