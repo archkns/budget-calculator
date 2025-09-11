@@ -1,1 +1,8 @@
-{}
+{
+  "crons": [
+    {
+      "path": "/api/holidays/auto-sync",
+      "schedule": "0 0 1 1,7 *"
+    }
+  ]
+}

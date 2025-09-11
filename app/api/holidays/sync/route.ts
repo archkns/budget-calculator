@@ -136,12 +136,32 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const year = searchParams.get('year') || new Date().getFullYear().toString()
+    const autoSync = searchParams.get('autoSync') === 'true'
 
     if (!isSupabaseConfigured) {
       return NextResponse.json(
         { error: 'Database not configured' },
         { status: 500 }
       )
+    }
+
+    // Check if auto-sync should be triggered
+    if (autoSync) {
+      const shouldAutoSync = checkAutoSyncSchedule()
+      if (shouldAutoSync.shouldSync) {
+        console.log(`Auto-sync triggered: ${shouldAutoSync.reason}`)
+        try {
+          // Perform auto-sync with iApp API for next 365 days
+          const autoSyncResult = await performAutoSync()
+          if (autoSyncResult.success) {
+            console.log(`Auto-sync completed: ${autoSyncResult.count} holidays synced`)
+          } else {
+            console.warn(`Auto-sync failed: ${autoSyncResult.error}`)
+          }
+        } catch (autoSyncError) {
+          console.error('Auto-sync error:', autoSyncError)
+        }
+      }
     }
 
     // Get holiday statistics for the year
@@ -370,5 +390,104 @@ async function fetchIAppThaiHolidays(year: string): Promise<HolidayData[]> {
     }
     
     throw new Error(`Failed to fetch holidays from iApp API: ${error instanceof Error ? error.message : 'Unknown error'}`)
+  }
+}
+
+/**
+ * Check if auto-sync should be triggered based on schedule (Jan 1 and Jul 1)
+ */
+function checkAutoSyncSchedule(): { shouldSync: boolean; reason: string } {
+  const now = new Date()
+  const currentMonth = now.getMonth() + 1 // 1-12
+  const currentDay = now.getDate()
+  
+  // Check if it's January 1st or July 1st
+  if ((currentMonth === 1 && currentDay === 1) || (currentMonth === 7 && currentDay === 1)) {
+    return {
+      shouldSync: true,
+      reason: `Scheduled auto-sync on ${currentMonth === 1 ? 'January 1st' : 'July 1st'}`
+    }
+  }
+  
+  return {
+    shouldSync: false,
+    reason: `Not a scheduled sync date (current: ${currentMonth}/${currentDay})`
+  }
+}
+
+/**
+ * Perform automatic sync of financial holidays for next 365 days
+ */
+async function performAutoSync(): Promise<{ success: boolean; count: number; error?: string }> {
+  try {
+    const apiKey = process.env.THAI_HOLIDAY_API_KEY
+    
+    if (!apiKey) {
+      return {
+        success: false,
+        count: 0,
+        error: 'Thai Holiday API key not configured'
+      }
+    }
+
+    console.log('Performing auto-sync: fetching financial holidays for next 365 days')
+    
+    // Fetch financial holidays for next 365 days
+    const financialResponse = await fetch(`https://api.iapp.co.th/data/thai-holidays/holidays?holiday_type=financial&days_after=365`, {
+      headers: {
+        'apikey': apiKey,
+        'Accept': 'application/json',
+        'User-Agent': 'Budget-Calculator/1.0'
+      }
+    })
+
+    if (!financialResponse.ok) {
+      return {
+        success: false,
+        count: 0,
+        error: `HTTP error: ${financialResponse.status}`
+      }
+    }
+
+    const financialData = await financialResponse.json()
+    console.log(`Auto-sync API response: ${financialData.holidays?.length || 0} financial holidays found`)
+
+    if (!financialData.holidays || !Array.isArray(financialData.holidays)) {
+      return {
+        success: false,
+        count: 0,
+        error: 'Invalid API response format'
+      }
+    }
+
+    // Process and sync holidays
+    const holidaysToInsert: HolidayData[] = []
+    
+    for (const holiday of financialData.holidays) {
+      holidaysToInsert.push({
+        id: `iapp-financial-${holiday.date}`,
+        name: holiday.name || 'Thai Financial Holiday',
+        date: holiday.date,
+        type: 'financial',
+        notes: holiday.weekday ? `Day: ${holiday.weekday} (Financial)` : 'Financial Holiday',
+        country: 'TH'
+      })
+    }
+
+    // Sync holidays to database
+    const syncResult = await holidayService.syncHolidays(holidaysToInsert, true)
+    
+    return {
+      success: true,
+      count: syncResult.count
+    }
+
+  } catch (error) {
+    console.error('Auto-sync error:', error)
+    return {
+      success: false,
+      count: 0,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    }
   }
 }
