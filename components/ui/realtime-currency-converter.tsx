@@ -270,7 +270,7 @@ export const RealtimeCurrencyConverter = memo(function RealtimeCurrencyConverter
 
         {/* Tax Settings */}
         <div className="border-t pt-4">
-          <div className="space-y-4">
+          <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <Switch
                 id="tax-enabled"
@@ -279,22 +279,23 @@ export const RealtimeCurrencyConverter = memo(function RealtimeCurrencyConverter
               />
               <Label htmlFor="tax-enabled">Enable Tax Calculation</Label>
             </div>
-
-            {taxEnabled && (
-              <div className="space-y-2">
-                <Label htmlFor="tax-percentage">Tax Percentage (%)</Label>
-                <Input
-                  id="tax-percentage"
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.1"
-                  value={taxPercentage}
-                  onChange={(e) => onTaxPercentageChange(parseFloat(e.target.value))}
-                  className="w-32"
-                />
-              </div>
-            )}
+            
+            <div className="flex items-center space-x-2">
+              <Label htmlFor="tax-percentage" className={!taxEnabled ? "text-gray-400" : ""}>
+                Tax Percentage (%)
+              </Label>
+              <Input
+                id="tax-percentage"
+                type="number"
+                min="0"
+                max="100"
+                step="0.1"
+                value={taxPercentage}
+                onChange={(e) => onTaxPercentageChange(parseFloat(e.target.value))}
+                className={`w-20 ${!taxEnabled ? "bg-gray-100 text-gray-400 cursor-not-allowed" : ""}`}
+                disabled={!taxEnabled}
+              />
+            </div>
           </div>
         </div>
 

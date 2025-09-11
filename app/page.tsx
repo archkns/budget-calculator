@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Calculator, Users, FileText, Settings } from 'lucide-react'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Plus, Calculator, Users, FileText, Settings, Edit, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import { formatCurrency, formatDate } from '@/lib/utils'
@@ -25,6 +26,7 @@ interface Project {
 export default function Dashboard() {
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
+  const [deleteProjectId, setDeleteProjectId] = useState<number | null>(null)
 
   const fetchProjects = async () => {
     try {
@@ -48,6 +50,29 @@ export default function Dashboard() {
   useEffect(() => {
     fetchProjects()
   }, [])
+
+  const handleDeleteProject = async (projectId: number) => {
+    try {
+      const response = await fetch(`/api/projects/${projectId}`, {
+        method: 'DELETE'
+      })
+
+      if (response.ok) {
+        toast.success('Project deleted successfully')
+        // Remove the project from the local state
+        setProjects(prev => prev.filter(project => project.id !== projectId))
+      } else {
+        const errorData = await response.json()
+        console.error('Delete project error:', errorData)
+        toast.error(`Failed to delete project: ${errorData.error || 'Unknown error'}`)
+      }
+    } catch (error) {
+      console.error('Error deleting project:', error)
+      toast.error('Failed to delete project')
+    } finally {
+      setDeleteProjectId(null)
+    }
+  }
 
   const stats = {
     totalProjects: projects.length,
@@ -159,30 +184,6 @@ export default function Dashboard() {
               </div>
             ) : (
               <div className="space-y-4">
-                {/* Column Headers */}
-                <div className="flex items-center p-4 bg-slate-50 border border-slate-200 rounded-lg">
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold text-slate-700">Project Details</p>
-                  </div>
-                  <div className="flex items-center">
-                    <div className="w-24 text-right mr-6">
-                      <p className="text-sm font-semibold text-slate-700">Start Date</p>
-                    </div>
-                    <div className="w-24 text-right mr-6">
-                      <p className="text-sm font-semibold text-slate-700">End Date</p>
-                    </div>
-                    <div className="w-32 text-right mr-6">
-                      <p className="text-sm font-semibold text-slate-700">Proposed</p>
-                    </div>
-                    <div className="w-36 text-right mr-6">
-                      <p className="text-sm font-semibold text-slate-700">Total Price</p>
-                    </div>
-                    <div className="w-28">
-                      <p className="text-sm font-semibold text-slate-700">Actions</p>
-                    </div>
-                  </div>
-                </div>
-                
                 {projects.map((project) => (
                   <div key={project.id} className="flex items-center p-4 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
                     <div className="flex-1">
@@ -241,12 +242,62 @@ export default function Dashboard() {
                           {formatCurrency(project.total_price || 0)}
                         </p>
                       </div>
-                      <div className="w-28">
+                      <div className="w-20 flex items-center space-x-2">
                         <Link href={`/projects/${project.id}`}>
-                          <Button variant="outline" size="sm" className="w-full">
-                            View Details
+                          <Button variant="outline" size="sm" className="h-8 w-8 p-0">
+                            <Edit className="h-4 w-4" />
                           </Button>
                         </Link>
+                        <Dialog open={deleteProjectId === project.id} onOpenChange={(open) => !open && setDeleteProjectId(null)}>
+                          <DialogTrigger asChild>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                              onClick={() => setDeleteProjectId(project.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle className="flex items-center text-red-600">
+                                <Trash2 className="h-5 w-5 mr-2" />
+                                Delete Project
+                              </DialogTitle>
+                              <DialogDescription>
+                                Are you sure you want to delete this project? This action cannot be undone and will permanently remove:
+                              </DialogDescription>
+                            </DialogHeader>
+                            <div className="py-4">
+                              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                                <ul className="text-sm text-red-800 space-y-1">
+                                  <li>• Project: <strong>{project.name}</strong></li>
+                                  <li>• Client: <strong>{project.client || 'No client'}</strong></li>
+                                  <li>• All team assignments and data</li>
+                                  <li>• All project calculations and settings</li>
+                                </ul>
+                              </div>
+                              <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                                <p className="text-sm text-yellow-800 font-medium">
+                                  ⚠️ This action cannot be reverted. Please make sure you want to permanently delete this project.
+                                </p>
+                              </div>
+                            </div>
+                            <DialogFooter>
+                              <Button variant="outline" onClick={() => setDeleteProjectId(null)}>
+                                Cancel
+                              </Button>
+                              <Button 
+                                variant="destructive" 
+                                onClick={() => handleDeleteProject(project.id)}
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete Project
+                              </Button>
+                            </DialogFooter>
+                          </DialogContent>
+                        </Dialog>
                       </div>
                     </div>
                   </div>

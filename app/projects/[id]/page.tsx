@@ -549,7 +549,8 @@ export default function ProjectWorkspace() {
         const newExecutionDays = differenceInDays(endDate, startDate) + 1
         updateData = { 
           daysAllocated: newExecutionDays,
-          startDate: startDate.toISOString().split('T')[0]
+          startDate: startDate.toISOString().split('T')[0],
+          endDate: endDate.toISOString().split('T')[0]
         }
       }
 
@@ -785,7 +786,7 @@ export default function ProjectWorkspace() {
                 inputClassName="text-3xl font-bold"
                 maxLength={100}
               />
-              <div className="text-slate-600 mt-2">
+              <div className="text-slate-600 mt-2 flex items-center">
                 <span className="mr-2">Client:</span>
                 <InlineEdit
                   value={project.client}

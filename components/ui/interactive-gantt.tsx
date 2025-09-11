@@ -132,14 +132,20 @@ export const InteractiveGantt = memo(function InteractiveGantt({
         const newStartDay = Math.round(newStartX / dayWidth)
         const newStartDate = addDays(timelineStart, Math.max(0, newStartDay))
         
-        onTaskUpdate(resizingTask, newStartDate, task.endDate)
+        // Ensure start date doesn't go past end date and is valid
+        if (newStartDate < task.endDate && newStartDate >= timelineStart) {
+          onTaskUpdate(resizingTask, newStartDate, task.endDate)
+        }
       } else if (resizeType === 'end') {
         // Resize from end - change end date
         const newEndX = Math.max(x - labelWidth, taskStartX + dayWidth)
         const newEndDay = Math.round(newEndX / dayWidth)
-        const newEndDate = addDays(timelineStart, newEndDay)
+        const newEndDate = addDays(timelineStart, Math.max(0, newEndDay))
         
-        onTaskUpdate(resizingTask, task.startDate, newEndDate)
+        // Ensure end date doesn't go before start date and is valid
+        if (newEndDate > task.startDate && newEndDate >= timelineStart) {
+          onTaskUpdate(resizingTask, task.startDate, newEndDate)
+        }
       }
     }
   }, [draggedTask, resizingTask, resizeType, dragOffset, tasks, onTaskUpdate, timelineStart, dayWidth, labelWidth, getDatePosition])
@@ -175,14 +181,20 @@ export const InteractiveGantt = memo(function InteractiveGantt({
         const newStartDay = Math.round(newStartX / dayWidth)
         const newStartDate = addDays(timelineStart, Math.max(0, newStartDay))
         
-        onTaskUpdate(resizingTask, newStartDate, task.endDate)
+        // Ensure start date doesn't go past end date and is valid
+        if (newStartDate < task.endDate && newStartDate >= timelineStart) {
+          onTaskUpdate(resizingTask, newStartDate, task.endDate)
+        }
       } else if (resizeType === 'end') {
         // Resize from end - change end date
         const newEndX = Math.max(x - labelWidth, taskStartX + dayWidth)
         const newEndDay = Math.round(newEndX / dayWidth)
-        const newEndDate = addDays(timelineStart, newEndDay)
+        const newEndDate = addDays(timelineStart, Math.max(0, newEndDay))
         
-        onTaskUpdate(resizingTask, task.startDate, newEndDate)
+        // Ensure end date doesn't go before start date and is valid
+        if (newEndDate > task.startDate && newEndDate >= timelineStart) {
+          onTaskUpdate(resizingTask, task.startDate, newEndDate)
+        }
       }
     }
   }, [draggedTask, resizingTask, resizeType, dragOffset, tasks, onTaskUpdate, timelineStart, dayWidth, labelWidth, getDatePosition])
