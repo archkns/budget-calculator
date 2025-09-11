@@ -77,6 +77,29 @@ export async function POST(request: NextRequest) {
     
     const validatedData = RateCardSchema.omit({ id: true, created_at: true, updated_at: true }).parse(body as Record<string, unknown>);
 
+    // Check if a rate card with the same role and level already exists
+    const { data: existingRateCard, error: checkError } = await supabaseAdmin()
+      .from('rate_cards')
+      .select('id, role_id, level_id')
+      .eq('role_id', validatedData.role_id)
+      .eq('level_id', validatedData.level_id)
+      .single();
+
+    if (checkError && checkError.code !== 'PGRST116') {
+      // PGRST116 means no rows found, which is what we want
+      console.error('Error checking existing rate card:', checkError);
+      return NextResponse.json(
+        { error: 'Failed to validate rate card uniqueness' },
+        { status: 500 }
+      );
+    }
+
+    if (existingRateCard) {
+      return NextResponse.json(
+        { error: 'A rate card for this role and level combination already exists. Each role can only have one rate card per level.' },
+        { status: 409 }
+      );
+    }
 
     let newRateCard, error;
     try {
@@ -113,6 +136,14 @@ export async function POST(request: NextRequest) {
     }
 
     if (error) {
+      // Handle unique constraint violation specifically
+      if (error.code === '23505' && error.message.includes('rate_cards_role_id_level_id_key')) {
+        return NextResponse.json(
+          { error: 'A rate card for this role and level combination already exists. Each role can only have one rate card per level.' },
+          { status: 409 }
+        );
+      }
+      
       const errorResponse = handleSupabaseError(error, 'create rate card');
       return NextResponse.json(
         { error: errorResponse.error },
@@ -189,6 +220,14 @@ export async function PUT(request: NextRequest) {
     }
 
     if (error) {
+      // Handle unique constraint violation specifically
+      if (error.code === '23505' && error.message.includes('rate_cards_role_id_level_id_key')) {
+        return NextResponse.json(
+          { error: 'A rate card for this role and level combination already exists. Each role can only have one rate card per level.' },
+          { status: 409 }
+        );
+      }
+      
       const errorResponse = handleSupabaseError(error, 'update rate card');
       return NextResponse.json(
         { error: errorResponse.error },

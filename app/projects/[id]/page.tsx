@@ -82,10 +82,9 @@ interface Holiday {
 }
 
 interface ProjectSummary {
-  subtotal: number
+  proposedPrice: number
   additionalCost: number
   cost: number
-  proposedPrice: number
   roi: number
   margin: number
 }
@@ -388,20 +387,23 @@ export default function ProjectWorkspace() {
   }
 
   const summary = useMemo((): ProjectSummary => {
-    const subtotal = assignments.reduce((sum, assignment) => sum + assignment.allocated_budget, 0)
-    
-    // Calculate tax if enabled
-    const taxRate = project.taxEnabled ? project.taxPercentage / 100 : 0
-    const tax = subtotal * taxRate
-    
-    // Calculate total cost (subtotal + tax)
-    const cost = subtotal + tax
+    // Proposed price from project
     const proposedPrice = project.proposedPrice
+    
+    // Calculate total cost from team assignment total prices
+    const totalAssignmentCost = assignments.reduce((sum, assignment) => sum + assignment.allocated_budget, 0)
+    
+    // Calculate tax if enabled (on total assignment cost)
+    const taxRate = project.taxEnabled ? project.taxPercentage / 100 : 0
+    const tax = totalAssignmentCost * taxRate
+    
+    // Calculate total cost (total assignment cost + tax)
+    const cost = totalAssignmentCost + tax
     
     const roi = cost > 0 ? ((proposedPrice - cost) / cost) * 100 : 0
     const margin = proposedPrice > 0 ? ((proposedPrice - cost) / proposedPrice) * 100 : 0
 
-    return { subtotal, additionalCost: tax, cost, proposedPrice, roi, margin }
+    return { proposedPrice, additionalCost: tax, cost, roi, margin }
   }, [assignments, project.proposedPrice, project.taxEnabled, project.taxPercentage])
 
   const formatCurrency = useCallback((amount: number) => {
@@ -1041,11 +1043,11 @@ export default function ProjectWorkspace() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Subtotal</CardTitle>
+              <CardTitle className="text-sm font-medium">Proposed Price</CardTitle>
               <Calculator className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(summary.subtotal)}</div>
+              <div className="text-2xl font-bold">{formatCurrency(summary.proposedPrice)}</div>
             </CardContent>
           </Card>
           
@@ -1057,7 +1059,7 @@ export default function ProjectWorkspace() {
             <CardContent>
               <div className="text-2xl font-bold">{formatCurrency(summary.cost)}</div>
               <p className="text-xs text-muted-foreground">
-                {formatCurrency(summary.subtotal)} + {formatCurrency(summary.additionalCost)} {project.taxEnabled ? '(Tax)' : ''}
+                {formatCurrency(summary.cost - summary.additionalCost)} + {formatCurrency(summary.additionalCost)} {project.taxEnabled ? '(Tax)' : ''}
               </p>
             </CardContent>
           </Card>

@@ -5,10 +5,9 @@ import { ProjectAssignment, Project } from './schemas';
 Decimal.set({ precision: 28, rounding: 4 });
 
 export interface ProjectSummary {
-  subtotal: Decimal;
+  proposedPrice: Decimal;
   tax: Decimal;
   cost: Decimal;
-  proposedPrice: Decimal;
   roi: Decimal;
   margin: Decimal;
 }
@@ -50,21 +49,21 @@ export function calculateProjectSummary(
   assignments: ProjectAssignment[],
   project: Project
 ): ProjectSummary {
-  // Calculate subtotal from all billable assignments
-  const subtotal = assignments.reduce((sum, assignment) => {
+  // Proposed price from project
+  const proposedPrice = new Decimal(project.proposed_price || 0);
+  
+  // Calculate total cost from team assignment total prices
+  const totalAssignmentCost = assignments.reduce((sum, assignment) => {
     const cost = calculateAssignmentCost(assignment);
     return sum.add(cost.rowCost);
   }, new Decimal(0));
 
-  // Calculate tax if enabled
+  // Calculate tax if enabled (on total assignment cost)
   const taxRate = project.tax_enabled ? new Decimal(project.tax_percentage).div(100) : new Decimal(0);
-  const tax = subtotal.mul(taxRate);
+  const tax = totalAssignmentCost.mul(taxRate);
 
-  // Calculate total cost (grand total)
-  const cost = subtotal.add(tax);
-
-  // Get proposed price
-  const proposedPrice = new Decimal(project.proposed_price || 0);
+  // Calculate total cost (total assignment cost + tax)
+  const cost = totalAssignmentCost.add(tax);
 
   // Calculate ROI and Margin
   let roi = new Decimal(0);
@@ -79,10 +78,9 @@ export function calculateProjectSummary(
   }
 
   return {
-    subtotal,
+    proposedPrice,
     tax,
     cost,
-    proposedPrice,
     roi,
     margin,
   };

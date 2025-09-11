@@ -95,6 +95,52 @@ export async function PUT(
     
     const validatedData = RateCardSchema.partial().parse(body as Record<string, unknown>);
 
+    // If role_id or level_id is being updated, check for conflicts
+    if (validatedData.role_id || validatedData.level_id) {
+      // First, get the current rate card to determine the final values
+      const { data: currentRateCard, error: currentError } = await supabaseAdmin()
+        .from('rate_cards')
+        .select('role_id, level_id')
+        .eq('id', id)
+        .single();
+
+      if (currentError) {
+        const errorResponse = handleSupabaseError(currentError, 'fetch current rate card');
+        return NextResponse.json(
+          { error: errorResponse.error },
+          { status: errorResponse.status }
+        );
+      }
+
+      const finalRoleId = validatedData.role_id || currentRateCard.role_id;
+      const finalLevelId = validatedData.level_id || currentRateCard.level_id;
+
+      // Check if another rate card with the same role and level exists (excluding current one)
+      const { data: existingRateCard, error: checkError } = await supabaseAdmin()
+        .from('rate_cards')
+        .select('id, role_id, level_id')
+        .eq('role_id', finalRoleId)
+        .eq('level_id', finalLevelId)
+        .neq('id', id)
+        .single();
+
+      if (checkError && checkError.code !== 'PGRST116') {
+        // PGRST116 means no rows found, which is what we want
+        console.error('Error checking existing rate card:', checkError);
+        return NextResponse.json(
+          { error: 'Failed to validate rate card uniqueness' },
+          { status: 500 }
+        );
+      }
+
+      if (existingRateCard) {
+        return NextResponse.json(
+          { error: 'A rate card for this role and level combination already exists. Each role can only have one rate card per level.' },
+          { status: 409 }
+        );
+      }
+    }
+
     const { data: updatedRateCard, error } = await supabaseAdmin()
       .from('rate_cards')
       .update(validatedData)
@@ -114,6 +160,14 @@ export async function PUT(
       .single();
 
     if (error) {
+      // Handle unique constraint violation specifically
+      if (error.code === '23505' && error.message.includes('rate_cards_role_id_level_id_key')) {
+        return NextResponse.json(
+          { error: 'A rate card for this role and level combination already exists. Each role can only have one rate card per level.' },
+          { status: 409 }
+        );
+      }
+      
       const errorResponse = handleSupabaseError(error, 'update rate card');
       return NextResponse.json(
         { error: errorResponse.error },

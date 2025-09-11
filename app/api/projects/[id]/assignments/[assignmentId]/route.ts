@@ -24,6 +24,8 @@ export async function PUT(
       daily_rate?: number;
       days_allocated?: number;
       buffer_days?: number;
+      total_mandays?: number;
+      allocated_budget?: number;
       start_date?: string;
       end_date?: string;
     } = {}
@@ -34,6 +36,37 @@ export async function PUT(
     if (body.bufferDays !== undefined) updateData.buffer_days = parseInt(body.bufferDays)
     if (body.startDate !== undefined) updateData.start_date = body.startDate
     if (body.endDate !== undefined) updateData.end_date = body.endDate
+
+    // Get current assignment data to calculate totals
+    const { data: currentAssignment, error: fetchError } = await supabaseAdmin()
+      .from('project_assignments')
+      .select('daily_rate, days_allocated, buffer_days')
+      .eq('id', assignmentIdNum)
+      .eq('project_id', projectId)
+      .single()
+
+    if (fetchError) {
+      console.error('Error fetching current assignment:', fetchError)
+      return NextResponse.json(
+        { error: 'Failed to fetch current assignment data' },
+        { status: 500 }
+      )
+    }
+
+    // Calculate final values (use updated values if provided, otherwise use current values)
+    const finalDailyRate = updateData.daily_rate ?? currentAssignment.daily_rate
+    const finalDaysAllocated = updateData.days_allocated ?? currentAssignment.days_allocated
+    const finalBufferDays = updateData.buffer_days ?? currentAssignment.buffer_days
+
+    // Calculate total mandays (days_allocated + buffer_days)
+    const totalMandays = finalDaysAllocated + finalBufferDays
+
+    // Calculate allocated budget (total_mandays * daily_rate)
+    const allocatedBudget = totalMandays * finalDailyRate
+
+    // Add calculated fields to update data
+    updateData.total_mandays = totalMandays
+    updateData.allocated_budget = allocatedBudget
 
     const { data: updatedAssignment, error } = await supabaseAdmin()
       .from('project_assignments')
