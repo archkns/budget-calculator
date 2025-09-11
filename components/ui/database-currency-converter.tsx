@@ -8,12 +8,24 @@ import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
-import { RefreshCw, DollarSign, TrendingUp, TrendingDown, ArrowUpDown, Wifi, WifiOff, Clock } from 'lucide-react'
+import { RefreshCw, DollarSign, TrendingUp, TrendingDown, ArrowUpDown, Wifi, WifiOff, Clock, Database } from 'lucide-react'
 import { toast } from 'sonner'
-import { CURRENCIES, getCurrencySymbol } from '@/lib/currencies'
 
+interface Currency {
+  id: number
+  code: string
+  name: string
+  symbol: string
+  decimal_places: number
+  is_base_currency: boolean
+  is_active: boolean
+  exchange_rate: number
+  last_updated: string
+  created_at: string
+  updated_at: string
+}
 
-interface RealtimeCurrencyConverterProps {
+interface DatabaseCurrencyConverterProps {
   currentCurrency: string
   currentSymbol: string
   proposedPrice: number
@@ -27,16 +39,7 @@ interface RealtimeCurrencyConverterProps {
   onTaxPercentageChange: (percentage: number) => void
 }
 
-// Use shared currency configuration
-
-// Fallback exchange rates (updated periodically)
-const FALLBACK_RATES: Record<string, Record<string, number>> = {
-  THB: { USD: 0.0278, EUR: 0.0256, GBP: 0.0218, JPY: 4.18, SGD: 0.0374, AUD: 0.0418, CAD: 0.0377, CHF: 0.0248, CNY: 0.199, INR: 2.33, KRW: 37.2, THB: 1 },
-  USD: { THB: 35.97, EUR: 0.92, GBP: 0.785, JPY: 150.3, SGD: 1.345, AUD: 1.504, CAD: 1.356, CHF: 0.892, CNY: 7.16, INR: 83.8, KRW: 1338, USD: 1 },
-  EUR: { THB: 39.06, USD: 1.087, GBP: 0.853, JPY: 163.4, SGD: 1.462, AUD: 1.635, CAD: 1.474, CHF: 0.970, CNY: 7.78, INR: 91.1, KRW: 1454, EUR: 1 }
-}
-
-export const RealtimeCurrencyConverter = memo(function RealtimeCurrencyConverter({
+export const DatabaseCurrencyConverter = memo(function DatabaseCurrencyConverter({
   currentCurrency,
   currentSymbol,
   proposedPrice,
@@ -48,25 +51,24 @@ export const RealtimeCurrencyConverter = memo(function RealtimeCurrencyConverter
   onHoursPerDayChange,
   onTaxEnabledChange,
   onTaxPercentageChange
-}: RealtimeCurrencyConverterProps) {
+}: DatabaseCurrencyConverterProps) {
   const [selectedCurrency, setSelectedCurrency] = useState(currentCurrency)
   const [manualRate, setManualRate] = useState<string>('')
   const [useManualRate, setUseManualRate] = useState(false)
   const [isConverting, setIsConverting] = useState(false)
   const [showConversionPreview, setShowConversionPreview] = useState(false)
-  const [exchangeRates, setExchangeRates] = useState<Record<string, number>>({})
+  const [currencies, setCurrencies] = useState<Currency[]>([])
   const [isLoadingRates, setIsLoadingRates] = useState(false)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [apiStatus, setApiStatus] = useState<'online' | 'offline' | 'loading'>('loading')
-  const [rateSource, setRateSource] = useState<'api' | 'fallback' | 'manual'>('api')
+  const [rateSource, setRateSource] = useState<'database' | 'manual'>('database')
 
   // Fetch currencies from database
-  const fetchExchangeRates = useCallback(async (baseCurrency: string = currentCurrency) => {
+  const fetchCurrencies = useCallback(async () => {
     setIsLoadingRates(true)
     setApiStatus('loading')
     
     try {
-      // Fetch currencies from database
       const response = await fetch('/api/currencies?active=true')
       
       if (!response.ok) {
@@ -76,151 +78,25 @@ export const RealtimeCurrencyConverter = memo(function RealtimeCurrencyConverter
       const data = await response.json()
       
       if (data.success && data.currencies) {
-        // Convert currencies array to rates object
-        const rates: Record<string, number> = {}
-        data.currencies.forEach((currency: { code: string; exchange_rate: number }) => {
-          rates[currency.code] = currency.exchange_rate
-        })
-        
-        setExchangeRates(rates)
+        setCurrencies(data.currencies)
         setLastUpdated(new Date())
         setApiStatus('online')
-        setRateSource('api')
-        toast.success(`Exchange rates loaded from database`)
+        setRateSource('database')
+        toast.success('Currency data loaded from database')
       } else {
         throw new Error('Invalid API response')
       }
     } catch (error) {
-      console.warn('Failed to fetch rates from database, using fallback:', error)
-      
-      // Use fallback rates
-      const fallbackRates = FALLBACK_RATES[baseCurrency] || FALLBACK_RATES.USD
-      setExchangeRates(fallbackRates)
-      setLastUpdated(new Date())
+      console.warn('Failed to fetch currencies from database:', error)
       setApiStatus('offline')
-      setRateSource('fallback')
-      toast.warning('Using fallback exchange rates (database unavailable)')
+      toast.warning('Failed to load currency data from database')
     } finally {
       setIsLoadingRates(false)
     }
-  }, [currentCurrency])
-
-  // Sync internal state with props
-  useEffect(() => {
-    setSelectedCurrency(currentCurrency)
-    setShowConversionPreview(false) // Reset conversion preview when currency changes
-  }, [currentCurrency])
-
-  // Initialize exchange rates on component mount
-  useEffect(() => {
-    fetchExchangeRates(currentCurrency)
-  }, [currentCurrency, fetchExchangeRates])
-
-  // Auto-refresh rates every 5 minutes
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (rateSource === 'api') {
-        fetchExchangeRates(currentCurrency)
-      }
-    }, 5 * 60 * 1000) // 5 minutes
-
-    return () => clearInterval(interval)
-  }, [currentCurrency, rateSource, fetchExchangeRates])
-
-  // Get current exchange rate (memoized)
-  const getCurrentRate = useCallback((): number => {
-    if (useManualRate && manualRate) {
-      setRateSource('manual')
-      return parseFloat(manualRate)
-    }
-    
-    // If current currency and selected currency are the same, rate should be 1
-    if (currentCurrency === selectedCurrency) {
-      return 1
-    }
-    
-    // The API now returns rates relative to the current currency
-    // So we can directly use the rate for the selected currency
-    const rate = exchangeRates[selectedCurrency] || 1
-    return rate
-  }, [useManualRate, manualRate, exchangeRates, selectedCurrency, currentCurrency])
-
-  // Calculate converted amount (memoized)
-  const convertedAmount = useMemo(() => {
-    return Math.round(proposedPrice * getCurrentRate())
-  }, [proposedPrice, getCurrentRate])
-  
-  const selectedCurrencyData = useMemo(() => {
-    return CURRENCIES.find(c => c.code === selectedCurrency)
-  }, [selectedCurrency])
-
-  // Handle currency selection change
-  const handleCurrencySelection = (newCurrency: string) => {
-    setSelectedCurrency(newCurrency)
-    setShowConversionPreview(newCurrency !== currentCurrency)
-    
-    // If switching to a currency we don't have rates for, fetch new rates
-    if (!exchangeRates[newCurrency] && newCurrency !== currentCurrency) {
-      fetchExchangeRates(currentCurrency)
-    }
-  }
-
-  // Apply currency conversion
-  const applyCurrencyConversion = async () => {
-    if (selectedCurrency === currentCurrency) return
-
-    setIsConverting(true)
-    
-    // Fetch fresh rates before conversion if using API
-    if (rateSource === 'api' && !useManualRate) {
-      await fetchExchangeRates(currentCurrency)
-    }
-    
-    const rate = getCurrentRate()
-    const newCurrencyData = CURRENCIES.find(c => c.code === selectedCurrency)
-    
-    setTimeout(() => {
-      if (newCurrencyData) {
-        onCurrencyChange(selectedCurrency, newCurrencyData.symbol, rate)
-        onProposedPriceChange(convertedAmount)
-        setShowConversionPreview(false)
-        
-        // Update exchange rates for the new base currency
-        fetchExchangeRates(selectedCurrency)
-        
-        toast.success(`Currency converted to ${newCurrencyData.name} (Rate: ${rate.toFixed(4)})`)
-      }
-      setIsConverting(false)
-    }, 500)
-  }
-
-  // Reset to THB
-  const resetToTHB = () => {
-    setSelectedCurrency('THB')
-    setUseManualRate(false)
-    setManualRate('')
-    setShowConversionPreview(false)
-    onCurrencyChange('THB', '฿', 1)
-    fetchExchangeRates('THB')
-    toast.success('Reset to Thai Baht')
-  }
-
-  // Handle manual rate change
-  const handleManualRateChange = (value: string) => {
-    setManualRate(value)
-    if (value && !isNaN(parseFloat(value))) {
-      setShowConversionPreview(true)
-      setRateSource('manual')
-    }
-  }
-
-  // Refresh rates manually
-  const refreshRates = () => {
-    fetchExchangeRates(currentCurrency)
-  }
+  }, [])
 
   // Sync with external API
-  const syncWithExternalAPI = async () => {
+  const syncWithExternalAPI = useCallback(async () => {
     setIsLoadingRates(true)
     setApiStatus('loading')
     
@@ -236,16 +112,10 @@ export const RealtimeCurrencyConverter = memo(function RealtimeCurrencyConverter
       const data = await response.json()
       
       if (data.success && data.currencies) {
-        // Convert currencies array to rates object
-        const rates: Record<string, number> = {}
-        data.currencies.forEach((currency: { code: string; exchange_rate: number }) => {
-          rates[currency.code] = currency.exchange_rate
-        })
-        
-        setExchangeRates(rates)
+        setCurrencies(data.currencies)
         setLastUpdated(new Date())
         setApiStatus('online')
-        setRateSource('api')
+        setRateSource('database')
         toast.success('Exchange rates synced with external API')
       } else {
         throw new Error('Invalid API response')
@@ -256,6 +126,98 @@ export const RealtimeCurrencyConverter = memo(function RealtimeCurrencyConverter
       toast.warning('Failed to sync with external API')
     } finally {
       setIsLoadingRates(false)
+    }
+  }, [])
+
+  // Sync internal state with props
+  useEffect(() => {
+    setSelectedCurrency(currentCurrency)
+    setShowConversionPreview(false)
+  }, [currentCurrency])
+
+  // Initialize currencies on component mount
+  useEffect(() => {
+    fetchCurrencies()
+  }, [fetchCurrencies])
+
+  // Get current exchange rate (memoized)
+  const getCurrentRate = useCallback((): number => {
+    if (useManualRate && manualRate) {
+      setRateSource('manual')
+      return parseFloat(manualRate)
+    }
+    
+    // If current currency and selected currency are the same, rate should be 1
+    if (currentCurrency === selectedCurrency) {
+      return 1
+    }
+    
+    // Find currencies in the database
+    const currentCurrencyData = currencies.find(c => c.code === currentCurrency)
+    const selectedCurrencyData = currencies.find(c => c.code === selectedCurrency)
+    
+    if (!currentCurrencyData || !selectedCurrencyData) {
+      return 1
+    }
+    
+    // Calculate exchange rate between currencies
+    // Both rates are relative to base currency, so we can calculate directly
+    const rate = currentCurrencyData.exchange_rate / selectedCurrencyData.exchange_rate
+    return rate
+  }, [useManualRate, manualRate, currencies, selectedCurrency, currentCurrency])
+
+  // Calculate converted amount (memoized)
+  const convertedAmount = useMemo(() => {
+    return Math.round(proposedPrice * getCurrentRate())
+  }, [proposedPrice, getCurrentRate])
+  
+  const selectedCurrencyData = useMemo(() => {
+    return currencies.find(c => c.code === selectedCurrency)
+  }, [currencies, selectedCurrency])
+
+  // Handle currency selection change
+  const handleCurrencySelection = (newCurrency: string) => {
+    setSelectedCurrency(newCurrency)
+    setShowConversionPreview(newCurrency !== currentCurrency)
+  }
+
+  // Apply currency conversion
+  const applyCurrencyConversion = async () => {
+    if (selectedCurrency === currentCurrency) return
+
+    setIsConverting(true)
+    
+    const rate = getCurrentRate()
+    const newCurrencyData = currencies.find(c => c.code === selectedCurrency)
+    
+    setTimeout(() => {
+      if (newCurrencyData) {
+        onCurrencyChange(selectedCurrency, newCurrencyData.symbol, rate)
+        onProposedPriceChange(convertedAmount)
+        setShowConversionPreview(false)
+        
+        toast.success(`Currency converted to ${newCurrencyData.name} (Rate: ${rate.toFixed(4)})`)
+      }
+      setIsConverting(false)
+    }, 500)
+  }
+
+  // Reset to THB
+  const resetToTHB = () => {
+    setSelectedCurrency('THB')
+    setUseManualRate(false)
+    setManualRate('')
+    setShowConversionPreview(false)
+    onCurrencyChange('THB', '฿', 1)
+    toast.success('Reset to Thai Baht')
+  }
+
+  // Handle manual rate change
+  const handleManualRateChange = (value: string) => {
+    setManualRate(value)
+    if (value && !isNaN(parseFloat(value))) {
+      setShowConversionPreview(true)
+      setRateSource('manual')
     }
   }
 
@@ -269,15 +231,15 @@ export const RealtimeCurrencyConverter = memo(function RealtimeCurrencyConverter
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           <div className="flex items-center">
-            <DollarSign className="h-5 w-5 mr-2" />
-            Project Settings & Currency
+            <Database className="h-5 w-5 mr-2" />
+            Project Settings & Currency (Database)
           </div>
           <div className="flex items-center space-x-2">
             {apiStatus === 'online' && <Wifi className="h-4 w-4 text-green-500" />}
             {apiStatus === 'offline' && <WifiOff className="h-4 w-4 text-orange-500" />}
             {apiStatus === 'loading' && <RefreshCw className="h-4 w-4 text-blue-500 animate-spin" />}
             <Badge variant={apiStatus === 'online' ? 'default' : 'secondary'} className="text-xs">
-              {apiStatus === 'online' ? 'Live Rates' : apiStatus === 'offline' ? 'Cached Rates' : 'Loading...'}
+              {apiStatus === 'online' ? 'Database Connected' : apiStatus === 'offline' ? 'Database Offline' : 'Loading...'}
             </Badge>
           </div>
         </CardTitle>
@@ -294,12 +256,11 @@ export const RealtimeCurrencyConverter = memo(function RealtimeCurrencyConverter
             />
           </div>
           <div>
-            <Label>Proposed Price ({currentSymbol || getCurrencySymbol(currentCurrency)})</Label>
+            <Label>Proposed Price ({currentSymbol})</Label>
             <Input
               type="text"
               value={proposedPrice ? proposedPrice.toLocaleString() : ''}
               onChange={(e) => {
-                // Remove commas and non-numeric characters, then parse
                 const numericValue = e.target.value.replace(/[^\d]/g, '')
                 const parsedValue = numericValue ? parseInt(numericValue) : 0
                 onProposedPriceChange(parsedValue)
@@ -343,21 +304,11 @@ export const RealtimeCurrencyConverter = memo(function RealtimeCurrencyConverter
         {/* Currency Conversion Section */}
         <div className="border-t pt-4">
           <div className="flex items-center justify-between mb-4">
-            <h4 className="font-medium text-sm">Real-time Currency Conversion</h4>
+            <h4 className="font-medium text-sm">Database Currency Conversion</h4>
             <div className="flex items-center space-x-2">
               <Badge variant="outline" className="bg-blue-50 text-blue-700">
-                Current: {currentCurrency} ({currentSymbol || getCurrencySymbol(currentCurrency)})
+                Current: {currentCurrency} ({currentSymbol})
               </Badge>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={refreshRates}
-                disabled={isLoadingRates}
-                className="h-6 w-6 p-0"
-                title="Refresh from database"
-              >
-                <RefreshCw className={`h-3 w-3 ${isLoadingRates ? 'animate-spin' : ''}`} />
-              </Button>
               <Button
                 variant="ghost"
                 size="sm"
@@ -366,7 +317,7 @@ export const RealtimeCurrencyConverter = memo(function RealtimeCurrencyConverter
                 className="h-6 w-6 p-0"
                 title="Sync with external API"
               >
-                <Wifi className="h-3 w-3" />
+                <RefreshCw className={`h-3 w-3 ${isLoadingRates ? 'animate-spin' : ''}`} />
               </Button>
             </div>
           </div>
@@ -381,7 +332,7 @@ export const RealtimeCurrencyConverter = memo(function RealtimeCurrencyConverter
               <div className="flex items-center space-x-1">
                 <span>Source: </span>
                 <Badge variant="outline" className="text-xs">
-                  {rateSource === 'api' ? 'Database' : rateSource === 'fallback' ? 'Cached' : 'Manual'}
+                  {rateSource === 'database' ? 'Database' : 'Manual'}
                 </Badge>
               </div>
             </div>
@@ -396,8 +347,8 @@ export const RealtimeCurrencyConverter = memo(function RealtimeCurrencyConverter
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {CURRENCIES.map(currency => (
-                    <SelectItem key={currency.code} value={currency.code}>
+                  {currencies.map(currency => (
+                    <SelectItem key={currency.id} value={currency.code}>
                       {currency.code} ({currency.symbol}) - {currency.name}
                     </SelectItem>
                   ))}
@@ -438,7 +389,7 @@ export const RealtimeCurrencyConverter = memo(function RealtimeCurrencyConverter
                 {rateDirection === 'down' && <TrendingDown className="h-3 w-3 text-red-500" />}
               </div>
               <Badge variant="outline" className="text-xs">
-                {rateSource === 'api' ? 'Live' : rateSource === 'fallback' ? 'Cached' : 'Manual'}
+                {rateSource === 'database' ? 'Database' : 'Manual'}
               </Badge>
             </div>
           )}
@@ -465,7 +416,7 @@ export const RealtimeCurrencyConverter = memo(function RealtimeCurrencyConverter
               <div className="text-xs text-gray-600 mt-2 flex items-center justify-between">
                 <span>Rate: 1 {currentCurrency} = {currentRate.toFixed(4)} {selectedCurrency}</span>
                 <Badge variant="outline" className="text-xs">
-                  {rateSource === 'api' ? 'Live Rate' : rateSource === 'fallback' ? 'Cached Rate' : 'Manual Rate'}
+                  {rateSource === 'database' ? 'Database Rate' : 'Manual Rate'}
                 </Badge>
               </div>
             </div>
@@ -504,7 +455,8 @@ export const RealtimeCurrencyConverter = memo(function RealtimeCurrencyConverter
 
           {/* Information */}
           <div className="text-xs text-gray-500 space-y-1 mt-4">
-            <div>• Rates update automatically every 5 minutes</div>
+            <div>• Currency data loaded from database</div>
+            <div>• Click sync button to update exchange rates from external API</div>
           </div>
         </div>
       </CardContent>

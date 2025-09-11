@@ -1,18 +1,4 @@
 // Database table interfaces
-export interface Currency {
-  id: number
-  code: string
-  name: string
-  symbol: string
-  decimal_places: number
-  is_base_currency: boolean
-  is_active: boolean
-  exchange_rate: number
-  last_updated: string
-  created_at: string
-  updated_at: string
-}
-
 export interface Level {
   id: number
   name: string
@@ -155,19 +141,5 @@ export interface CreateRateCardData {
 }
 
 export interface UpdateRateCardData extends Partial<CreateRateCardData> {
-  id: number
-}
-
-export interface CreateCurrencyData {
-  code: string
-  name: string
-  symbol: string
-  decimal_places?: number
-  is_base_currency?: boolean
-  is_active?: boolean
-  exchange_rate?: number
-}
-
-export interface UpdateCurrencyData extends Partial<CreateCurrencyData> {
   id: number
 }

@@ -1,115 +1,87 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin, handleSupabaseError } from '@/lib/supabase';
-import { CurrencySchema } from '@/lib/schemas';
-import { z } from 'zod';
+import { NextRequest, NextResponse } from 'next/server'
+import { currencyService } from '@/lib/db/currencies'
 
-export const runtime = 'nodejs';
+export const runtime = 'nodejs'
 
-// GET /api/currencies - Get all currencies
+/**
+ * GET /api/currencies
+ * Get all currencies or active currencies only
+ */
 export async function GET(request: NextRequest) {
   try {
-    const supabase = supabaseAdmin();
-    const { searchParams } = new URL(request.url);
-    const activeOnly = searchParams.get('active_only') === 'true';
+    const { searchParams } = new URL(request.url)
+    const activeOnly = searchParams.get('active') === 'true'
 
-    let query = supabase
-      .from('currencies')
-      .select('*')
-      .order('is_base_currency', { ascending: false })
-      .order('code', { ascending: true });
+    const currencies = activeOnly 
+      ? await currencyService.getActiveCurrencies()
+      : await currencyService.getAllCurrencies()
 
-    if (activeOnly) {
-      query = query.eq('is_active', true);
-    }
-
-    const { data: currencies, error } = await query;
-
-    if (error) {
-      const errorResponse = handleSupabaseError(error, 'fetch currencies');
-      return NextResponse.json(
-        { error: errorResponse.error },
-        { status: errorResponse.status }
-      );
-    }
-
-    return NextResponse.json({ currencies });
+    return NextResponse.json({
+      success: true,
+      currencies,
+      count: currencies.length
+    })
   } catch (error) {
-    console.error('Unexpected error:', error);
+    console.error('Error fetching currencies:', error)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { 
+        success: false,
+        error: 'Failed to fetch currencies',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
-    );
+    )
   }
 }
 
-// POST /api/currencies - Create a new currency
+/**
+ * POST /api/currencies
+ * Create a new currency
+ */
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    const body = await request.json()
     
-    // Validate the request body
-    const validatedData = CurrencySchema.omit({ 
-      id: true, 
-      created_at: true, 
-      updated_at: true,
-      last_updated: true 
-    }).parse(body);
-
-    const supabase = supabaseAdmin();
-
-    // Check if currency code already exists
-    const { data: existingCurrency } = await supabase
-      .from('currencies')
-      .select('id')
-      .eq('code', validatedData.code)
-      .single();
-
-    if (existingCurrency) {
+    // Validate required fields
+    if (!body.code || !body.name || !body.symbol) {
       return NextResponse.json(
-        { error: 'Currency code already exists' },
+        { 
+          success: false,
+          error: 'Missing required fields',
+          message: 'code, name, and symbol are required'
+        },
         { status: 400 }
-      );
+      )
     }
 
-    // If this is being set as base currency, unset any existing base currency
-    if (validatedData.is_base_currency) {
-      await supabase
-        .from('currencies')
-        .update({ is_base_currency: false })
-        .eq('is_base_currency', true);
-    }
-
-    // Create the new currency
-    const { data: currency, error } = await supabase
-      .from('currencies')
-      .insert([{
-        ...validatedData,
-        last_updated: new Date().toISOString(),
-      }])
-      .select()
-      .single();
-
-    if (error) {
-      const errorResponse = handleSupabaseError(error, 'create currency');
+    // Validate currency code format
+    if (!/^[A-Z]{3}$/.test(body.code)) {
       return NextResponse.json(
-        { error: errorResponse.error },
-        { status: errorResponse.status }
-      );
+        { 
+          success: false,
+          error: 'Invalid currency code',
+          message: 'Currency code must be 3 uppercase letters (ISO 4217 format)'
+        },
+        { status: 400 }
+      )
     }
 
-    return NextResponse.json({ currency }, { status: 201 });
+    const currency = await currencyService.createCurrency(body)
+
+    return NextResponse.json({
+      success: true,
+      currency,
+      message: 'Currency created successfully'
+    }, { status: 201 })
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: 'Validation error', details: error.errors },
-        { status: 400 }
-      );
-    }
-
-    console.error('Unexpected error:', error);
+    console.error('Error creating currency:', error)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { 
+        success: false,
+        error: 'Failed to create currency',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
-    );
+    )
   }
 }

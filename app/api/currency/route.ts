@@ -43,6 +43,7 @@ let rateCache: {
   data: Record<string, number>;
   timestamp: number;
   ttl: number;
+  baseCurrency: string;
 } | null = null;
 
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
@@ -50,7 +51,7 @@ const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 // Function to get exchange rates from external API with fallback
 async function getExchangeRates(baseCurrency: string = 'USD'): Promise<Record<string, number>> {
   // Check cache first
-  if (rateCache && Date.now() - rateCache.timestamp < rateCache.ttl) {
+  if (rateCache && rateCache.baseCurrency === baseCurrency && Date.now() - rateCache.timestamp < rateCache.ttl) {
     return rateCache.data;
   }
   
@@ -60,10 +61,11 @@ async function getExchangeRates(baseCurrency: string = 'USD'): Promise<Record<st
     
     // Using exchangerate-api.com (free tier, no API key required)
     // You can configure a custom API URL and key via environment variables
+    // Note: Always use USD as base for external API since it has the most reliable data
     const apiKey = process.env.EXCHANGE_RATE_API_KEY;
     const apiUrl = process.env.EXCHANGE_RATE_API_URL || 'https://api.exchangerate-api.com/v4/latest';
     
-    const url = `${apiUrl}/${baseCurrency}${apiKey ? `?access_key=${apiKey}` : ''}`;
+    const url = `${apiUrl}/USD${apiKey ? `?access_key=${apiKey}` : ''}`;
     
     const response = await fetch(url, {
       headers: {
@@ -83,32 +85,40 @@ async function getExchangeRates(baseCurrency: string = 'USD'): Promise<Record<st
       // Convert rates to our format (THB as base for our application)
       const rates: Record<string, number> = {};
       
-      // If base currency is not THB, we need to convert to THB rates
-      if (baseCurrency === 'THB') {
-        // Direct rates from THB
+      // The external API returns USD-based rates where each currency shows how many units of that currency = 1 USD
+      // We need to convert these to rates relative to our requested base currency
+      
+      if (baseCurrency === 'USD') {
+        // If base is USD, use the rates directly
         Object.entries(data.rates).forEach(([currency, rate]) => {
-          rates[currency] = rate as number;
-        });
-        rates['THB'] = 1.0; // THB to THB is always 1
-      } else {
-        // Convert from other base currency to THB rates
-        const thbRate = data.rates['THB'] || 1;
-        Object.entries(data.rates).forEach(([currency, rate]) => {
-          if (currency === 'THB') {
+          if (currency === 'USD') {
             rates[currency] = 1.0;
           } else {
-            // Convert: (rate / thbRate) gives us currency to THB rate
-            rates[currency] = (rate as number) / thbRate;
+            // Use the rate directly: if 1 USD = rate currency, then 1 USD = rate currency
+            rates[currency] = rate as number;
           }
         });
-        rates[baseCurrency] = thbRate; // Base currency to THB rate
+      } else {
+        // If base is not USD, convert from USD-based rates
+        const baseToUSD = data.rates[baseCurrency] || 1; // How many base currency units = 1 USD
+        
+        Object.entries(data.rates).forEach(([currency, rate]) => {
+          if (currency === baseCurrency) {
+            rates[currency] = 1.0; // Base currency to itself is always 1
+          } else {
+            // Convert: if 1 USD = rate currency and 1 USD = baseToUSD base_currency
+            // Then: 1 base_currency = (rate / baseToUSD) currency
+            rates[currency] = (rate as number) / baseToUSD;
+          }
+        });
       }
       
       // Cache the rates
       rateCache = {
         data: rates,
         timestamp: Date.now(),
-        ttl: CACHE_TTL
+        ttl: CACHE_TTL,
+        baseCurrency: baseCurrency
       };
       
       console.log(`Successfully fetched exchange rates from external API`);
@@ -126,7 +136,8 @@ async function getExchangeRates(baseCurrency: string = 'USD'): Promise<Record<st
     rateCache = {
       data: fallbackRates,
       timestamp: Date.now(),
-      ttl: 1 * 60 * 1000 // 1 minute for fallback rates to allow faster retry
+      ttl: 1 * 60 * 1000, // 1 minute for fallback rates to allow faster retry
+      baseCurrency: baseCurrency
     };
     
     return fallbackRates;
