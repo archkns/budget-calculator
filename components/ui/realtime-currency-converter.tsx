@@ -261,9 +261,15 @@ export const RealtimeCurrencyConverter = memo(function RealtimeCurrencyConverter
           <div>
             <Label>Proposed Price ({currentSymbol})</Label>
             <Input
-              type="number"
-              value={proposedPrice}
-              onChange={(e) => onProposedPriceChange(parseInt(e.target.value))}
+              type="text"
+              value={proposedPrice ? proposedPrice.toLocaleString() : ''}
+              onChange={(e) => {
+                // Remove commas and non-numeric characters, then parse
+                const numericValue = e.target.value.replace(/[^\d]/g, '')
+                const parsedValue = numericValue ? parseInt(numericValue) : 0
+                onProposedPriceChange(parsedValue)
+              }}
+              placeholder="Enter amount"
             />
           </div>
         </div>

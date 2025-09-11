@@ -125,7 +125,15 @@ export default function ProjectWorkspace() {
   const [showAddTeamMember, setShowAddTeamMember] = useState(false)
   const [selectedTeamMember, setSelectedTeamMember] = useState<TeamMember | null>(null)
   const [showStatusEdit, setShowStatusEdit] = useState(false)
+  const [selectedNewStatus, setSelectedNewStatus] = useState<'ACTIVE' | 'DRAFT' | 'COMPLETED' | 'CANCELLED'>('ACTIVE')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+
+  // Initialize selected new status when status edit dialog opens
+  useEffect(() => {
+    if (showStatusEdit) {
+      setSelectedNewStatus(project.status)
+    }
+  }, [showStatusEdit, project.status])
 
   const fetchProject = useCallback(async () => {
     try {
@@ -618,6 +626,8 @@ export default function ProjectWorkspace() {
           status: updatedProject.status
         }))
         toast.success('Project updated successfully')
+        // Redirect to home page after successful save
+        router.push('/')
       } else {
         const errorData = await response.json()
         console.error('Update project error:', errorData)
@@ -846,9 +856,9 @@ export default function ProjectWorkspace() {
                     <div>
                       <Label>New Status</Label>
                       <Select
-                        value={project.status}
+                        value={selectedNewStatus}
                         onValueChange={(value: 'ACTIVE' | 'DRAFT' | 'COMPLETED' | 'CANCELLED') => {
-                          setProject(prev => ({ ...prev, status: value }))
+                          setSelectedNewStatus(value)
                         }}
                       >
                         <SelectTrigger>
@@ -869,7 +879,7 @@ export default function ProjectWorkspace() {
                     </Button>
                     <Button 
                       onClick={() => {
-                        updateProjectStatus(project.status)
+                        updateProjectStatus(selectedNewStatus)
                         setShowStatusEdit(false)
                       }}
                     >
