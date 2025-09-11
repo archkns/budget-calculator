@@ -25,6 +25,8 @@ export async function GET(
           id,
           name,
           default_rate_per_day,
+          role_id,
+          level_id,
           roles:role_id (
             id,
             name
@@ -34,15 +36,6 @@ export async function GET(
             name,
             display_name
           )
-        ),
-        roles:role_id (
-          id,
-          name
-        ),
-        levels:level_id (
-          id,
-          name,
-          display_name
         )
       `)
       .eq('project_id', projectId)
@@ -101,6 +94,8 @@ export async function POST(
     const assignmentData = {
       project_id: projectId,
       team_member_id: body.team_member_id,
+      role_id: body.role_id,
+      level_id: body.level_id,
       daily_rate: parseFloat(body.daily_rate),
       days_allocated: 0,
       buffer_days: 0,

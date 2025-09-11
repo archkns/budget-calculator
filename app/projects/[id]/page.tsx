@@ -524,7 +524,7 @@ export default function ProjectWorkspace() {
       // Use start_date from database if available, otherwise fall back to project start date
       const startDate = assignment.start_date ? new Date(assignment.start_date) : project.startDate
       const name = assignment.team_members?.name || 'Unknown'
-      const role = assignment.team_members?.roles?.name || 'No role'
+      const role = assignment.roles?.name || assignment.team_members?.roles?.name || 'No role'
       
       // Execution phase
       const executionEnd = calculateWorkdays(startDate, assignment.days_allocated, holidays)
@@ -1292,7 +1292,7 @@ export default function ProjectWorkspace() {
                     {assignments.map((assignment) => (
                       <TableRow key={assignment.id}>
                         <TableCell className="font-medium">{assignment.team_members?.name || 'Unknown'}</TableCell>
-                        <TableCell>{assignment.team_members?.roles?.name || 'No role'}</TableCell>
+                        <TableCell>{assignment.roles?.name || assignment.team_members?.roles?.name || 'No role'}</TableCell>
                         <TableCell>
                           <Badge variant="outline" className="text-xs">
                             {formatLevel(assignment.levels || assignment.team_members?.levels)}
