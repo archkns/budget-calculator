@@ -5,8 +5,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Calculator, Edit, X, Check } from 'lucide-react'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Label } from '@/components/ui/label'
+import { Calculator, Edit, X, Check, Plus } from 'lucide-react'
 import Link from 'next/link'
+import { toast } from 'sonner'
 
 interface RateCard {
   id: number
@@ -17,19 +21,29 @@ interface RateCard {
   is_active: boolean
 }
 
+interface Level {
+  id: number
+  name: string
+  display_name: string
+}
+
 export default function RateCards() {
   const [rateCards, setRateCards] = useState<RateCard[]>([])
   const [editingCard, setEditingCard] = useState<number | null>(null)
   const [editValue, setEditValue] = useState<string>('')
   const [loading, setLoading] = useState(true)
+  const [levels, setLevels] = useState<Level[]>([])
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+  const [selectedRole, setSelectedRole] = useState<string>('')
 
-  // Fetch rate cards from database
+  // Fetch rate cards and levels from database
   useEffect(() => {
-    const fetchRateCards = async () => {
+    const fetchData = async () => {
       try {
-        const response = await fetch('/api/rate-cards')
-        if (response.ok) {
-          const data = await response.json()
+        // Fetch rate cards
+        const rateCardsResponse = await fetch('/api/rate-cards')
+        if (rateCardsResponse.ok) {
+          const data = await rateCardsResponse.json()
           // Transform the data to match the expected format
           const transformedData = data.map((card: { id: number; roles?: { name: string }; levels?: { name: string; display_name: string }; daily_rate: number; is_active: boolean }) => ({
             id: card.id,
@@ -41,20 +55,58 @@ export default function RateCards() {
           }))
           setRateCards(transformedData)
         } else {
-          console.error('Failed to fetch rate cards:', response.statusText)
+          console.error('Failed to fetch rate cards:', rateCardsResponse.statusText)
+        }
+
+        // Fetch levels
+        const levelsResponse = await fetch('/api/levels')
+        if (levelsResponse.ok) {
+          const levelsData = await levelsResponse.json()
+          setLevels(levelsData)
+        } else {
+          console.error('Failed to fetch levels:', levelsResponse.statusText)
         }
       } catch (error) {
-        console.error('Error fetching rate cards:', error)
+        console.error('Error fetching data:', error)
       } finally {
         setLoading(false)
       }
     }
 
-    fetchRateCards()
+    fetchData()
   }, [])
 
   const formatCurrency = (amount: number) => {
     return `฿${amount.toLocaleString()}`
+  }
+
+  // Function to refresh rate cards data
+  const refreshRateCards = async () => {
+    try {
+      const response = await fetch('/api/rate-cards')
+      if (response.ok) {
+        const data = await response.json()
+        const transformedData = data.map((card: { id: number; roles?: { name: string }; levels?: { name: string; display_name: string }; daily_rate: number; is_active: boolean }) => ({
+          id: card.id,
+          role_name: card.roles?.name || 'Unknown Role',
+          level_name: card.levels?.name || 'Unknown Level',
+          level_display_name: card.levels?.display_name || 'Unknown Level',
+          daily_rate: card.daily_rate,
+          is_active: card.is_active
+        }))
+        setRateCards(transformedData)
+      } else {
+        console.error('Failed to fetch rate cards:', response.statusText)
+      }
+    } catch (error) {
+      console.error('Error fetching rate cards:', error)
+    }
+  }
+
+  // Function to handle opening add rate card dialog
+  const handleAddRateCard = (roleName: string) => {
+    setSelectedRole(roleName)
+    setIsAddDialogOpen(true)
   }
 
 
@@ -232,9 +284,19 @@ export default function RateCards() {
                 <CardHeader>
                   <CardTitle className="flex items-center justify-between">
                     <span>{roleName}</span>
-                    <Badge variant="outline">
-                      {cards.filter(c => c.is_active).length} active levels
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline">
+                        {cards.filter(c => c.is_active).length} active levels
+                      </Badge>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleAddRateCard(roleName)}
+                      >
+                        <Plus className="h-4 w-4 mr-1" />
+                        Add Rate Card
+                      </Button>
+                    </div>
                   </CardTitle>
                   <CardDescription>
                     Daily rates for different experience levels
@@ -305,7 +367,172 @@ export default function RateCards() {
             ))}
           </div>
         )}
+
+        {/* Add Rate Card Dialog */}
+        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Add Rate Card</DialogTitle>
+              <DialogDescription>
+                Add a new rate card for {selectedRole}
+              </DialogDescription>
+            </DialogHeader>
+            <AddRateCardForm 
+              roleName={selectedRole}
+              levels={levels}
+              onClose={() => {
+                setIsAddDialogOpen(false)
+                setSelectedRole('')
+              }}
+              onSuccess={refreshRateCards}
+            />
+          </DialogContent>
+        </Dialog>
       </main>
     </div>
+  )
+}
+
+function AddRateCardForm({ 
+  roleName, 
+  levels, 
+  onClose, 
+  onSuccess 
+}: { 
+  roleName: string
+  levels: Level[]
+  onClose: () => void
+  onSuccess: () => void
+}) {
+  const [formData, setFormData] = useState({
+    level_id: '',
+    daily_rate: '',
+    is_active: true
+  })
+  const [loading, setLoading] = useState(false)
+  const [roles, setRoles] = useState<Array<{id: number, name: string}>>([])
+
+  // Fetch roles to get the role ID
+  useEffect(() => {
+    const fetchRoles = async () => {
+      try {
+        const response = await fetch('/api/roles')
+        if (response.ok) {
+          const rolesData = await response.json()
+          setRoles(rolesData)
+        } else {
+          console.error('Failed to fetch roles:', response.statusText)
+        }
+      } catch (error) {
+        console.error('Error fetching roles:', error)
+      }
+    }
+    fetchRoles()
+  }, [])
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    
+    try {
+      // Find the role ID for the selected role name
+      const role = roles.find(r => r.name === roleName)
+      if (!role) {
+        toast.error('Role not found')
+        return
+      }
+
+      const response = await fetch('/api/rate-cards', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          role_id: role.id,
+          level_id: parseInt(formData.level_id),
+          daily_rate: parseFloat(formData.daily_rate),
+          is_active: formData.is_active
+        })
+      })
+
+      if (response.ok) {
+        toast.success('Rate card added successfully')
+        onSuccess()
+        onClose()
+      } else {
+        const errorData = await response.json()
+        console.error('Failed to add rate card:', errorData)
+        toast.error(`Failed to add rate card: ${errorData.error || response.statusText}`)
+      }
+    } catch (error) {
+      console.error('Error adding rate card:', error)
+      toast.error('Error adding rate card. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <Label htmlFor="role">Role</Label>
+        <Input
+          id="role"
+          value={roleName}
+          disabled
+          className="bg-gray-50"
+        />
+      </div>
+
+      <div>
+        <Label htmlFor="level">Level *</Label>
+        <Select value={formData.level_id} onValueChange={(value) => {
+          setFormData({ ...formData, level_id: value })
+        }}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select level" />
+          </SelectTrigger>
+          <SelectContent>
+            {levels.map((level) => (
+              <SelectItem key={level.id} value={level.id.toString()}>
+                {level.display_name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div>
+        <Label htmlFor="daily_rate">Daily Rate (THB) *</Label>
+        <Input
+          id="daily_rate"
+          type="number"
+          value={formData.daily_rate}
+          onChange={(e) => setFormData({ ...formData, daily_rate: e.target.value })}
+          placeholder="15000"
+          required
+        />
+      </div>
+
+      <div className="flex items-center space-x-2">
+        <input
+          type="checkbox"
+          id="is_active"
+          checked={formData.is_active}
+          onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+          className="rounded"
+        />
+        <Label htmlFor="is_active">Active</Label>
+      </div>
+
+      <div className="flex justify-end space-x-3 pt-4">
+        <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
+          Cancel
+        </Button>
+        <Button type="submit" disabled={loading}>
+          {loading ? 'Adding...' : 'Add Rate Card'}
+        </Button>
+      </div>
+    </form>
   )
 }

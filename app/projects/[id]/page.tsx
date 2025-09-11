@@ -22,25 +22,7 @@ import { InlineEdit } from '@/components/ui/inline-edit'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { formatLevel } from '@/lib/utils'
-
-// Helper function to get currency symbol from currency code
-const getCurrencySymbol = (code: string): string => {
-  const symbols: Record<string, string> = {
-    'THB': '฿',
-    'USD': '$',
-    'EUR': '€',
-    'GBP': '£',
-    'JPY': '¥',
-    'SGD': 'S$',
-    'AUD': 'A$',
-    'CAD': 'C$',
-    'CHF': 'Fr',
-    'CNY': '¥',
-    'INR': '₹',
-    'KRW': '₩'
-  }
-  return symbols[code] || '$'
-}
+import { getCurrencySymbol } from '@/lib/currencies'
 
 interface TeamMember {
   id: number
@@ -419,16 +401,20 @@ export default function ProjectWorkspace() {
 
   const summary = useMemo((): ProjectSummary => {
     const subtotal = assignments.reduce((sum, assignment) => sum + assignment.allocated_budget, 0)
-    const additionalCost = 98700 // Fixed additional cost
-    // Use database-calculated allocated_budget if available, otherwise calculate manually
-    const cost = project.totalPrice || (subtotal + additionalCost)
+    
+    // Calculate tax if enabled
+    const taxRate = project.taxEnabled ? project.taxPercentage / 100 : 0
+    const tax = subtotal * taxRate
+    
+    // Calculate total cost (subtotal + tax)
+    const cost = subtotal + tax
     const proposedPrice = project.proposedPrice
     
     const roi = cost > 0 ? ((proposedPrice - cost) / cost) * 100 : 0
     const margin = proposedPrice > 0 ? ((proposedPrice - cost) / proposedPrice) * 100 : 0
 
-    return { subtotal, additionalCost, cost, proposedPrice, roi, margin }
-  }, [assignments, project.proposedPrice, project.totalPrice])
+    return { subtotal, additionalCost: tax, cost, proposedPrice, roi, margin }
+  }, [assignments, project.proposedPrice, project.taxEnabled, project.taxPercentage])
 
   const formatCurrency = useCallback((amount: number) => {
     return `${project.currency.symbol}${amount.toLocaleString()}`
@@ -1088,7 +1074,7 @@ export default function ProjectWorkspace() {
             <CardContent>
               <div className="text-2xl font-bold">{formatCurrency(summary.cost)}</div>
               <p className="text-xs text-muted-foreground">
-                {formatCurrency(summary.subtotal)} + {formatCurrency(summary.additionalCost)}
+                {formatCurrency(summary.subtotal)} + {formatCurrency(summary.additionalCost)} {project.taxEnabled ? '(Tax)' : ''}
               </p>
             </CardContent>
           </Card>

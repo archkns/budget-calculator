@@ -13,6 +13,7 @@ import { DayPicker } from '@/components/ui/day-picker'
 import { Calculator, ArrowLeft, Save, Rocket } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
+import { CURRENCIES } from '@/lib/currencies'
 
 interface ProjectFormData {
   name: string
@@ -28,13 +29,8 @@ interface ProjectFormData {
   guarantee_days: number
 }
 
-const currencyOptions = [
-  { code: 'THB', symbol: '฿', name: 'Thai Baht' },
-  { code: 'USD', symbol: '$', name: 'US Dollar' },
-  { code: 'EUR', symbol: '€', name: 'Euro' },
-  { code: 'GBP', symbol: '£', name: 'British Pound' },
-  { code: 'JPY', symbol: '¥', name: 'Japanese Yen' },
-]
+// Use shared currency configuration
+const currencyOptions = CURRENCIES
 
 const workingWeekOptions = [
   { value: 'MON_TO_FRI', label: 'Monday to Friday' },

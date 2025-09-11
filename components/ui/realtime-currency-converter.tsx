@@ -10,12 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
 import { RefreshCw, DollarSign, TrendingUp, TrendingDown, ArrowUpDown, Wifi, WifiOff, Clock } from 'lucide-react'
 import { toast } from 'sonner'
-
-interface Currency {
-  code: string
-  symbol: string
-  name: string
-}
+import { CURRENCIES, getCurrencySymbol } from '@/lib/currencies'
 
 
 interface RealtimeCurrencyConverterProps {
@@ -32,26 +27,7 @@ interface RealtimeCurrencyConverterProps {
   onTaxPercentageChange: (percentage: number) => void
 }
 
-const CURRENCIES: Currency[] = [
-  { code: 'THB', symbol: '฿', name: 'Thai Baht' },
-  { code: 'USD', symbol: '$', name: 'US Dollar' },
-  { code: 'EUR', symbol: '€', name: 'Euro' },
-  { code: 'GBP', symbol: '£', name: 'British Pound' },
-  { code: 'JPY', symbol: '¥', name: 'Japanese Yen' },
-  { code: 'SGD', symbol: 'S$', name: 'Singapore Dollar' },
-  { code: 'AUD', symbol: 'A$', name: 'Australian Dollar' },
-  { code: 'CAD', symbol: 'C$', name: 'Canadian Dollar' },
-  { code: 'CHF', symbol: 'Fr', name: 'Swiss Franc' },
-  { code: 'CNY', symbol: '¥', name: 'Chinese Yuan' },
-  { code: 'INR', symbol: '₹', name: 'Indian Rupee' },
-  { code: 'KRW', symbol: '₩', name: 'South Korean Won' }
-]
-
-// Helper function to get currency symbol from currency code
-const getCurrencySymbol = (code: string): string => {
-  const currency = CURRENCIES.find(c => c.code === code)
-  return currency?.symbol || '$'
-}
+// Use shared currency configuration
 
 // Fallback exchange rates (updated periodically)
 const FALLBACK_RATES: Record<string, Record<string, number>> = {

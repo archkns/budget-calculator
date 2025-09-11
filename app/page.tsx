@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { Plus, Calculator, Users, FileText, Settings, Edit, Trash2 } from 'lucide-react'
+import { Plus, Calculator, Users, FileText, Settings, Edit, Trash2, Copy } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import { formatCurrency, formatDate } from '@/lib/utils'
@@ -28,6 +28,11 @@ export default function Dashboard() {
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   const [deleteProjectId, setDeleteProjectId] = useState<number | null>(null)
+  const [duplicateProjectId, setDuplicateProjectId] = useState<number | null>(null)
+  const [duplicateProjectName, setDuplicateProjectName] = useState('')
+  const [duplicateClient, setDuplicateClient] = useState('')
+  const [duplicateStartDate, setDuplicateStartDate] = useState('')
+  const [duplicateEndDate, setDuplicateEndDate] = useState('')
 
   const fetchProjects = async () => {
     try {
@@ -72,6 +77,42 @@ export default function Dashboard() {
       toast.error('Failed to delete project')
     } finally {
       setDeleteProjectId(null)
+    }
+  }
+
+  const handleDuplicateProject = async (projectId: number) => {
+    try {
+      const response = await fetch(`/api/projects/${projectId}/duplicate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: duplicateProjectName || undefined,
+          client: duplicateClient || undefined,
+          startDate: duplicateStartDate || undefined,
+          endDate: duplicateEndDate || undefined
+        })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        toast.success('Project duplicated successfully')
+        // Add the new project to the local state
+        setProjects(prev => [data.project, ...prev])
+        setDuplicateProjectId(null)
+        setDuplicateProjectName('')
+        setDuplicateClient('')
+        setDuplicateStartDate('')
+        setDuplicateEndDate('')
+      } else {
+        const errorData = await response.json()
+        console.error('Duplicate project error:', errorData)
+        toast.error(`Failed to duplicate project: ${errorData.error || 'Unknown error'}`)
+      }
+    } catch (error) {
+      console.error('Error duplicating project:', error)
+      toast.error('Failed to duplicate project')
     }
   }
 
@@ -253,12 +294,137 @@ export default function Dashboard() {
                           {formatCurrency(project.proposed_price || 0, project.currency_code)}
                         </p>
                       </div>
-                      <div className="w-20 flex items-center space-x-2">
+                      <div className="w-28 flex items-center space-x-2">
                         <Link href={`/projects/${project.id}`}>
                           <Button variant="outline" size="sm" className="h-8 w-8 p-0">
                             <Edit className="h-4 w-4" />
                           </Button>
                         </Link>
+                        <Dialog open={duplicateProjectId === project.id} onOpenChange={(open) => {
+                          if (!open) {
+                            setDuplicateProjectId(null)
+                            setDuplicateProjectName('')
+                            setDuplicateClient('')
+                            setDuplicateStartDate('')
+                            setDuplicateEndDate('')
+                          }
+                        }}>
+                          <DialogTrigger asChild>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                              onClick={() => {
+                                setDuplicateProjectId(project.id)
+                                setDuplicateProjectName(`${project.name} (Copy)`)
+                                setDuplicateClient(project.client || '')
+                                setDuplicateStartDate('')
+                                setDuplicateEndDate('')
+                              }}
+                            >
+                              <Copy className="h-4 w-4" />
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle className="flex items-center text-blue-600">
+                                <Copy className="h-5 w-5 mr-2" />
+                                Duplicate Project
+                              </DialogTitle>
+                              <DialogDescription>
+                                Create a copy of this project with all its settings and team assignments.
+                              </DialogDescription>
+                            </DialogHeader>
+                            <div className="py-4">
+                              <div className="space-y-4">
+                                <div>
+                                  <label htmlFor="duplicate-name" className="block text-sm font-medium text-gray-700 mb-2">
+                                    Project Name <span className="text-red-500">*</span>
+                                  </label>
+                                  <input
+                                    id="duplicate-name"
+                                    type="text"
+                                    value={duplicateProjectName}
+                                    onChange={(e) => setDuplicateProjectName(e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    placeholder="Enter project name"
+                                    required
+                                  />
+                                </div>
+                                
+                                <div>
+                                  <label htmlFor="duplicate-client" className="block text-sm font-medium text-gray-700 mb-2">
+                                    Client Name <span className="text-gray-400 text-xs">(optional)</span>
+                                  </label>
+                                  <input
+                                    id="duplicate-client"
+                                    type="text"
+                                    value={duplicateClient}
+                                    onChange={(e) => setDuplicateClient(e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    placeholder="Enter client name"
+                                  />
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                  <div>
+                                    <label htmlFor="duplicate-start-date" className="block text-sm font-medium text-gray-700 mb-2">
+                                      Start Date <span className="text-gray-400 text-xs">(optional)</span>
+                                    </label>
+                                    <input
+                                      id="duplicate-start-date"
+                                      type="date"
+                                      value={duplicateStartDate}
+                                      onChange={(e) => setDuplicateStartDate(e.target.value)}
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    />
+                                  </div>
+                                  
+                                  <div>
+                                    <label htmlFor="duplicate-end-date" className="block text-sm font-medium text-gray-700 mb-2">
+                                      End Date <span className="text-gray-400 text-xs">(optional)</span>
+                                    </label>
+                                    <input
+                                      id="duplicate-end-date"
+                                      type="date"
+                                      value={duplicateEndDate}
+                                      onChange={(e) => setDuplicateEndDate(e.target.value)}
+                                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    />
+                                  </div>
+                                </div>
+
+                                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                  <p className="text-sm text-blue-800">
+                                    <strong>Original Project:</strong> {project.name}
+                                  </p>
+                                  <p className="text-sm text-blue-800 mt-1">
+                                    <strong>Client:</strong> {project.client || 'No client'}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                            <DialogFooter>
+                              <Button variant="outline" onClick={() => {
+                                setDuplicateProjectId(null)
+                                setDuplicateProjectName('')
+                                setDuplicateClient('')
+                                setDuplicateStartDate('')
+                                setDuplicateEndDate('')
+                              }}>
+                                Cancel
+                              </Button>
+                              <Button 
+                                onClick={() => handleDuplicateProject(project.id)}
+                                className="bg-blue-600 hover:bg-blue-700"
+                                disabled={!duplicateProjectName.trim()}
+                              >
+                                <Copy className="h-4 w-4 mr-2" />
+                                Duplicate Project
+                              </Button>
+                            </DialogFooter>
+                          </DialogContent>
+                        </Dialog>
                         <Dialog open={deleteProjectId === project.id} onOpenChange={(open) => !open && setDeleteProjectId(null)}>
                           <DialogTrigger asChild>
                             <Button 
