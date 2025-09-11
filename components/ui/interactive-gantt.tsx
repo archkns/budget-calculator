@@ -374,19 +374,9 @@ export const InteractiveGantt = memo(function InteractiveGantt({
                             border: `1px solid ${task.color}`
                           }}
                           onMouseDown={(e) => {
-                            // Check if clicking on resize handles or main area
-                            const rect = e.currentTarget.getBoundingClientRect()
-                            const clickX = e.clientX - rect.left
-                            const isOnLeftResize = clickX < 12 // 12px left resize area
-                            const isOnRightResize = clickX > (rect.width - 12) // 12px right resize area
-                            
-                            if (isOnLeftResize) {
-                              handleMouseDown(e, task.id, 'resize-start')
-                            } else if (isOnRightResize) {
-                              handleMouseDown(e, task.id, 'resize-end')
-                            } else {
-                              handleMouseDown(e, task.id, 'drag')
-                            }
+                            // Main task bar only handles drag operations
+                            // Resize operations are handled by the dedicated resize handles
+                            handleMouseDown(e, task.id, 'drag')
                           }}
                         >
                           {/* Task Content */}
@@ -406,26 +396,26 @@ export const InteractiveGantt = memo(function InteractiveGantt({
 
                           {/* Left Resize Handle */}
                           <div
-                            className="absolute left-0 top-0 w-3 h-full cursor-ew-resize bg-white/20 hover:bg-white/40 transition-all duration-150 flex items-center justify-center group"
+                            className="absolute left-0 top-0 w-4 h-full cursor-ew-resize bg-white/20 hover:bg-white/40 transition-all duration-150 flex items-center justify-center group z-30"
                             onMouseDown={(e) => {
                               e.stopPropagation()
                               handleMouseDown(e, task.id, 'resize-start')
                             }}
                             title="Drag to resize start date"
                           >
-                            <div className="w-1 h-4 bg-white/80 rounded-full group-hover:bg-white transition-colors"></div>
+                            <div className="w-1 h-6 bg-white/80 rounded-full group-hover:bg-white transition-colors"></div>
                           </div>
 
                           {/* Right Resize Handle */}
                           <div
-                            className="absolute right-0 top-0 w-3 h-full cursor-ew-resize bg-white/20 hover:bg-white/40 transition-all duration-150 flex items-center justify-center group"
+                            className="absolute right-0 top-0 w-4 h-full cursor-ew-resize bg-white/20 hover:bg-white/40 transition-all duration-150 flex items-center justify-center group z-30"
                             onMouseDown={(e) => {
                               e.stopPropagation()
                               handleMouseDown(e, task.id, 'resize-end')
                             }}
                             title="Drag to resize end date"
                           >
-                            <div className="w-1 h-4 bg-white/80 rounded-full group-hover:bg-white transition-colors"></div>
+                            <div className="w-1 h-6 bg-white/80 rounded-full group-hover:bg-white transition-colors"></div>
                           </div>
                         </div>
 
