@@ -449,7 +449,6 @@ export default function ProjectWorkspace() {
     try {
       // Map frontend field names to database field names
       const dbFieldMap: { [key: string]: string } = {
-        'dailyRate': 'daily_rate',
         'daysAllocated': 'days_allocated',
         'bufferDays': 'buffer_days'
       }
@@ -1288,25 +1287,31 @@ export default function ProjectWorkspace() {
                           <Input
                             type="number"
                             value={assignment.daily_rate}
-                            onChange={(e) => updateAssignment(assignment.id, 'dailyRate', parseFloat(e.target.value))}
-                            className="w-24"
+                            disabled
+                            className="w-24 bg-slate-50"
+                            title="Rate is set from rate card and cannot be edited here"
                           />
                         </TableCell>
                         <TableCell>
                           <Input
                             type="number"
-                            value={assignment.days_allocated}
-                            onChange={(e) => updateAssignment(assignment.id, 'daysAllocated', parseFloat(e.target.value))}
-                            className="w-20"
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Input
-                            type="number"
-                            value={assignment.buffer_days}
-                            onChange={(e) => updateAssignment(assignment.id, 'bufferDays', parseFloat(e.target.value))}
+                            value={assignment.days_allocated || 0}
+                            onChange={(e) => updateAssignment(assignment.id, 'daysAllocated', parseInt(e.target.value) || 0)}
                             className="w-20"
                             min="0"
+                            step="1"
+                            placeholder="0"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            value={assignment.buffer_days || 0}
+                            onChange={(e) => updateAssignment(assignment.id, 'bufferDays', parseInt(e.target.value) || 0)}
+                            className="w-20"
+                            min="0"
+                            step="1"
+                            placeholder="0"
                           />
                         </TableCell>
                         <TableCell className="font-mono">

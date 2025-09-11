@@ -31,11 +31,10 @@ export async function PUT(
     } = {}
     
     // Map frontend fields to database fields
-    if (body.dailyRate !== undefined) updateData.daily_rate = parseFloat(body.dailyRate)
-    if (body.daysAllocated !== undefined) updateData.days_allocated = parseInt(body.daysAllocated)
-    if (body.bufferDays !== undefined) updateData.buffer_days = parseInt(body.bufferDays)
-    if (body.startDate !== undefined) updateData.start_date = body.startDate
-    if (body.endDate !== undefined) updateData.end_date = body.endDate
+    if (body.days_allocated !== undefined) updateData.days_allocated = parseInt(body.days_allocated)
+    if (body.buffer_days !== undefined) updateData.buffer_days = parseInt(body.buffer_days)
+    if (body.start_date !== undefined) updateData.start_date = body.start_date
+    if (body.end_date !== undefined) updateData.end_date = body.end_date
 
     // Get current assignment data to calculate totals
     const { data: currentAssignment, error: fetchError } = await supabaseAdmin()

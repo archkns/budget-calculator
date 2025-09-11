@@ -53,22 +53,6 @@ A comprehensive internal-only web application for project cost estimation, team 
 - **MSW** for API mocking
 - **11 passing tests** covering core calculations
 
-## 📊 Rate Card (Omelet Rates)
-
-| Role | Team Lead | Senior | Junior |
-|------|-----------|--------|--------|
-| Project Director | ฿60,000 | - | - |
-| Experience Designer (UX/UI) | ฿18,000 | ฿14,000 | ฿10,000 |
-| Project Owner | ฿20,000 | ฿16,000 | ฿12,000 |
-| Business Innovation Analyst (BA) | ฿20,000 | ฿16,000 | ฿12,000 |
-| System Analyst | ฿18,000 | ฿14,000 | ฿12,000 |
-| Frontend Dev | ฿18,000 | ฿14,000 | ฿12,000 |
-| Backend Dev | ฿20,000 | ฿14,000 | ฿12,000 |
-| LINE Dev | ฿22,000 | ฿16,000 | ฿12,000 |
-| DevOps | ฿25,000 | ฿18,000 | N/A |
-| QA Tester | ฿16,000 | ฿13,000 | ฿10,000 |
-| Operation | ฿12,000 | ฿10,500 | ฿9,000 |
-
 ## 🧮 Calculation Formulas
 
 ### Project Totals
