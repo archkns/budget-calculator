@@ -5,6 +5,20 @@ export const TeamMemberStatus = z.enum(['ACTIVE', 'INACTIVE']);
 export const WorkingWeek = z.enum(['MON_TO_FRI', 'MON_TO_SAT', 'CUSTOM']);
 
 // Base schemas
+export const CurrencySchema = z.object({
+  id: z.number().optional(),
+  code: z.string().length(3, 'Currency code must be exactly 3 characters').regex(/^[A-Z]{3}$/, 'Currency code must be uppercase letters'),
+  name: z.string().min(1, 'Currency name is required').max(100),
+  symbol: z.string().min(1, 'Currency symbol is required').max(10),
+  decimal_places: z.number().int().min(0).max(4).default(2),
+  is_base_currency: z.boolean().default(false),
+  is_active: z.boolean().default(true),
+  exchange_rate: z.number().min(0).default(1),
+  last_updated: z.date().optional(),
+  created_at: z.date().optional(),
+  updated_at: z.date().optional(),
+});
+
 export const LevelSchema = z.object({
   id: z.number().optional(),
   name: z.string().min(1, 'Level name is required').max(50),
@@ -133,6 +147,7 @@ export const AssignmentFormSchema = ProjectAssignmentSchema.omit({
 });
 
 // Type exports
+export type Currency = z.infer<typeof CurrencySchema>;
 export type Role = z.infer<typeof RoleSchema>;
 export type RateCard = z.infer<typeof RateCardSchema>;
 export type TeamMember = z.infer<typeof TeamMemberSchema>;
