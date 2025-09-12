@@ -1,6 +1,6 @@
 # Budget Calculator
 
-A comprehensive internal-only web application for project cost estimation, team allocation, and pricing built with Next.js 14, TypeScript, and PostgreSQL.
+A comprehensive web application for project cost estimation, team allocation, and pricing management built with Next.js 15, TypeScript, and PostgreSQL. This tool helps businesses accurately calculate project costs, manage team resources, and track financial metrics with precision.
 
 ## 🚀 Live Demo
 
@@ -14,44 +14,64 @@ A comprehensive internal-only web application for project cost estimation, team 
 - **Rate Card System**: Manage daily rates for different roles and experience levels
 - **Financial Calculations**: ROI%, Margin%, tax calculations with Decimal.js precision
 - **Day Configuration**: Execution days, buffer days, calendar mode with holiday handling
+- **Multi-Currency Support**: Real-time currency conversion and exchange rate management
+- **Holiday Management**: Public holiday tracking with external API integration
 
 ### Key Pages
 1. **Dashboard** (`/`) - Project overview with stats and recent projects
 2. **Team Library** (`/team`) - Manage team members with search, filter, and pagination
 3. **Rate Cards** (`/rate-cards`) - Configure daily rates by role and level
 4. **Project Workspace** (`/projects/[id]`) - Detailed project management with tabs
+5. **Currency Management** (`/currencies`) - Multi-currency support with exchange rates
+6. **Holiday Management** (`/holidays`) - Public holiday calendar management
 
 ### Advanced Features
 - **Inline Editing**: Edit rates and assignments directly in tables
 - **Real-time Calculations**: Live updates of costs, ROI, and margins
 - **CSV Import/Export**: Bulk operations for team data
-- **Holiday Management**: Thai public holidays with custom treatment options
-- **Templates & Scenarios**: Save and compare project configurations
+- **Currency Conversion**: Real-time exchange rate updates from external APIs
+- **Holiday Integration**: Thai public holidays with custom treatment options
+- **Project Templates**: Save and compare project configurations
+- **Interactive Gantt Charts**: Visual project timeline management
+- **PDF Export**: Generate project reports and documentation
 
 ## 🛠 Tech Stack
 
 ### Frontend
-- **Next.js 14** with App Router and TypeScript
+- **Next.js 15** with App Router and TypeScript
+- **React 19** with modern hooks and concurrent features
 - **Tailwind CSS** + **shadcn/ui** + **Radix UI** for components
 - **Lucide React** for icons
 - **next-themes** for dark mode support
-- **Framer Motion** for animations
+- **Motion** (Framer Motion) for animations
+- **Recharts** for data visualization
+- **React Hook Form** with Zod validation
 
-### Backend
+### Backend & Database
 - **Supabase PostgreSQL** database with comprehensive schema
 - **Next.js API Routes** with Edge/Node runtime optimization
 - **Zod** for validation and type safety
-- **react-hook-form** for form management
+- **PostgreSQL** with advanced indexing and triggers
 
-### Calculations & Data
+### Calculations & Data Processing
 - **Decimal.js** for precise financial calculations
-- **date-fns** for date manipulation
-- **CSV/ICS parsing** for imports
+- **date-fns** for date manipulation and formatting
+- **CSV/ICS parsing** for data imports
+- **Real-time currency conversion** with external APIs
+- **Holiday calendar integration** with external services
 
-### Testing
-- **Jest** + **Testing Library** for unit/integration tests
-- **MSW** for API mocking
-- **11 passing tests** covering core calculations
+### UI/UX Components
+- **Interactive Gantt Charts** for project timeline visualization
+- **Virtualized Tables** for large dataset performance
+- **Inline Editing** with real-time validation
+- **PDF Generation** with jsPDF and html2canvas
+- **Responsive Design** with mobile-first approach
+
+### Development & Testing
+- **TypeScript** for type safety
+- **ESLint** with Next.js configuration
+- **Comprehensive test coverage** for calculations
+- **Performance optimizations** with Edge Runtime
 
 ## 🧮 Calculation Formulas
 
@@ -81,12 +101,17 @@ Execution Days = max(0, Final Days - Buffer Days)
 - **project_assignments** - Team member allocations per project
 - **public_holidays** - Holiday calendar with treatment options
 - **project_templates** - Saved project configurations
+- **currencies** - Multi-currency support with exchange rates
+- **levels** - Experience level definitions (Junior, Senior, etc.)
 
 ### Key Features
 - **Automatic timestamps** with triggers
 - **Referential integrity** with foreign keys
 - **Performance indexes** on frequently queried columns
 - **Enum types** for level types and status values
+- **Real-time currency conversion** with external API integration
+- **Holiday management** with external calendar sync
+- **Advanced indexing** for optimal query performance
 
 ## 🚀 Getting Started
 
@@ -141,18 +166,36 @@ bun test
 budget-calculator/
 ├── app/                    # Next.js App Router
 │   ├── api/               # API routes
-│   ├── projects/[id]/     # Project workspace
-│   ├── team/              # Team library
-│   ├── rate-cards/        # Rate management
+│   │   ├── currencies/    # Currency management APIs
+│   │   ├── holidays/      # Holiday management APIs
+│   │   ├── projects/      # Project management APIs
+│   │   ├── rate-cards/    # Rate card APIs
+│   │   ├── roles/         # Role management APIs
+│   │   └── team/          # Team management APIs
+│   ├── currencies/        # Currency management page
+│   ├── holidays/          # Holiday management page
+│   ├── projects/          # Project workspace
+│   │   ├── [id]/         # Individual project page
+│   │   └── new/          # New project creation
+│   ├── rate-cards/        # Rate management page
+│   ├── team/              # Team library page
 │   └── page.tsx           # Dashboard
 ├── components/            # Reusable components
-│   └── ui/               # shadcn/ui components
+│   ├── ui/               # shadcn/ui components
+│   ├── currency-converter.tsx
+│   ├── interactive-gantt.tsx
+│   └── virtualized-table.tsx
+├── hooks/                 # Custom React hooks
+│   ├── use-api.ts
+│   ├── use-currencies.ts
+│   └── use-debounce.ts
 ├── lib/                   # Utilities and logic
 │   ├── db/               # Database connection and schema
 │   ├── schemas/          # Zod validation schemas
-│   └── calculations.ts   # Core calculation functions
-├── __tests__/            # Test files
-└── public/               # Static assets
+│   ├── calculations.ts   # Core calculation functions
+│   ├── currencies.ts     # Currency utilities
+│   └── utils.ts          # General utilities
+└── supabase/             # Supabase configuration
 ```
 
 ## 🧪 Testing
@@ -210,22 +253,39 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_actual_anon_key
 
 ## 🎯 Future Enhancements
 
-- [ ] User authentication and permissions
+- [ ] User authentication and role-based permissions
 - [ ] Real-time collaboration with WebSockets
-- [ ] Advanced reporting and analytics
+- [ ] Advanced reporting and analytics dashboard
 - [ ] Mobile app with React Native
-- [ ] Integration with external project management tools
-- [ ] Multi-currency support with exchange rates
-- [ ] Advanced holiday calendar management
+- [ ] Integration with external project management tools (Jira, Asana)
+- [ ] Advanced holiday calendar management for multiple countries
 - [ ] Bulk operations for project assignments
+- [ ] Time tracking and actual vs. estimated cost analysis
+- [ ] Client portal for project visibility
+- [ ] Advanced Gantt chart features with dependencies
+- [ ] Automated project cost alerts and notifications
+- [ ] Integration with accounting software
+- [ ] Advanced export options (Excel, Google Sheets)
+- [ ] Project templates with industry-specific configurations
+- [ ] **Fix drag & drop functionality in Gantt chart**
 
 ## 📄 License
 
-This is an internal-only application for project cost estimation and team allocation.
+This project is proprietary software for project cost estimation and team allocation.
 
 ## 🤝 Contributing
 
-This is an internal project. For questions or suggestions, please contact the development team.
+This is a private project. For questions or suggestions, please contact the development team.
+
+## 🏆 Key Benefits
+
+- **Accurate Cost Estimation**: Precise financial calculations with Decimal.js
+- **Multi-Currency Support**: Real-time exchange rates and currency conversion
+- **Team Resource Management**: Comprehensive team library with role-based rates
+- **Holiday Integration**: Automatic holiday exclusion from project timelines
+- **Real-time Updates**: Live calculation updates as you modify project parameters
+- **Export Capabilities**: PDF reports and CSV exports for external use
+- **Responsive Design**: Works seamlessly across desktop and mobile devices
 
 ---
 
